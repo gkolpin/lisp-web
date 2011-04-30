@@ -1,0 +1,8 @@
+* Stuff to implement
+** widget rendering and views
+** history
+   Figure out how widgets will maintain state history so that the back button will work - maybe this can be done using object deltas which record the differences between interactions
+** before-render
+   Figure out if all before-renders happen before rendering starts
+** def-page
+   Can define a page with an associated url

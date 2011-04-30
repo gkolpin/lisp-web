@@ -1,0 +1,2 @@
+-don't use symbol references, parents will just keep hard links to child widgets.
+-child widgets won't be able to 'replace' themselves since the parent will keep the reference, so we'll need to be able for children to send messages to listeners so that a child can message a parent that it needs to be swapped to a different widget
