@@ -4,7 +4,6 @@
 (defvar *acceptor* nil)
 (defvar *cur-user-session* nil)
 (defvar *user-sessions* (make-hash-table))
-(defvar *widget-hash* nil)
 (defvar *init-fun* nil)
 (defvar *port* 4343)
 
@@ -49,10 +48,7 @@
   (unless *session* (store-user-session (initialize-user-session (start-session))))
   (let ((*cur-user-session* (retrieve-user-session *session*))
 	(inputs (gather-inputs)))
-    (let ((*widget-hash* (make-hash-table)))
-      (evaluate-request inputs)
-      (with-html-output-to-string (s)
-	(str (show-widget-tree (widget-tree *cur-user-session*)))))))
+    (evaluate-request inputs)))
 
 (defun evaluate-request (inputs)
   ;; evaluate actions with optional inputs - perform before renders - perform renders
@@ -76,16 +72,10 @@
     (widgets-in-tree widget-tree)))
 		 
 (defun render-session-widgets ()
-    (dolist (widget (reverse (widgets-in-tree (widget-tree *cur-user-session*))))
-      (setf (gethash widget *widget-hash*) (render widget t))))
+  (render (widget-tree *cur-user-session*)))
 
-;; called by render methods - assumes widget has already been rendered
-;; and exists in *widget-hash*
-(defun show-widget (widget)
-  (gethash widget *widget-hash*))
-  
-(defun show-widget-tree (widget-tree)
-  (show-widget widget-tree))
+(defun render (widget)
+  (render-content widget t))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;WIDGETS
@@ -94,11 +84,11 @@
 (defclass widget ()
   ())
 
-(defgeneric before-render (widget &key))
+(defgeneric before-render-content (widget &key))
 
-(defgeneric render (widget view &key))
+(defgeneric render-content (widget view &key))
 
-(defmethod render ((widget t) (view t) &key) "DEFAULT RENDERER")
+(defmethod render-content ((widget t) (view t) &key) "DEFAULT RENDERER")
 
 (defun slot-def-name (slot-def)
   (if (listp slot-def)

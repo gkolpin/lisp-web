@@ -1,4 +1,4 @@
-(defpackage :automated-tests)
+(defpackage :automated-tests (:use :common-lisp :cl-gweb))
 (in-package :automated-tests)
 (use-package :cl-gweb)
 
@@ -35,10 +35,10 @@
 
 (defwidget bar widget (a))
 
-(defmethod render ((widget foo) (view t) &key)
-  (show-widget (b widget)))
+(defmethod render-content ((widget foo) (view t) &key)
+  (render (b widget)))
 
-(defmethod render ((widget bar) (view t) &key)
+(defmethod render-content ((widget bar) (view t) &key)
   (a widget))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -46,7 +46,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun setup-user-session1 ()
-  (setf *init-fun* #'(lambda () (create-foo :a 1 :b (create-bar :a 3))))
+  (setf *init-fun* #'(lambda () (create-foo :a 1 :b (create-bar :a "3"))))
   (cl-gweb::initialize-user-session nil))
 
 (defun test1 ()
@@ -58,11 +58,10 @@
     (assertEql 'bar (type-of (second widget-list)))))
 
 (defun test-render ()
-  (let* ((cl-gweb::*cur-user-session* (setup-user-session1))
-	 (cl-gweb::*widget-hash* (make-hash-table)))
+  (let* ((cl-gweb::*cur-user-session* (setup-user-session1)))
     (cl-gweb::evaluate-request (funcall *init-fun*))
-    (assert= 3 (cl-gweb::show-widget-tree
-		(cl-gweb::widget-tree cl-gweb::*cur-user-session*)))))
+    (assertEqual "3" (cl-gweb::render
+		      (cl-gweb::widget-tree cl-gweb::*cur-user-session*)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; END TESTS
