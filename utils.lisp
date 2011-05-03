@@ -1,5 +1,11 @@
 (in-package :cl-gweb)
 
+(defmacro with-gensyms (arg-names &body body)
+  (let ((let-list (loop for arg in arg-names collect
+			`(,arg (gensym)))))
+    `(let (,@let-list)
+       ,@body)))
+
 (defun cat-symbols (&rest symbols)
   (intern (apply #'concatenate (cons 'string (mapcar #'symbol-name symbols)))))
 
@@ -11,3 +17,13 @@
 
 (defun mappend (fn &rest lsts)
   (apply #'append (apply #'mapcar fn lsts)))
+
+(defmacro pincf (place &optional (delta 1))
+  (with-gensyms (place-arg)
+    `(let ((,place-arg ,place))
+       (incf ,place ,delta)
+       ,place-arg)))
+
+(defmacro awhen (test &body body)
+  `(let ((it ,test))
+     (when it ,@body)))

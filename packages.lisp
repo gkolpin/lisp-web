@@ -1,5 +1,6 @@
 (defpackage :cl-gweb
-  (:use :common-lisp :hunchentoot :cl-who)
+  (:use :common-lisp :hunchentoot :cl-who :url-rewrite)
+  (:shadowing-import-from :hunchentoot #:url-encode)
   (:export #:*debug*
 	   #:render
 	   #:render-content
@@ -10,7 +11,9 @@
 	   #:start-gweb
 	   #:restart-gweb
 	   #:defwidget
-	   #:show-widget))
+	   #:show-widget
+	   #:link-fn
+	   #:create-link))
 
 (defpackage :test1
-  (:use :common-lisp :cl-gweb))
+  (:use :common-lisp :cl-gweb :cl-who))

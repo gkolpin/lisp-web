@@ -58,8 +58,9 @@
     (assertEql 'bar (type-of (second widget-list)))))
 
 (defun test-render ()
-  (let* ((cl-gweb::*cur-user-session* (setup-user-session1)))
-    (cl-gweb::evaluate-request (funcall *init-fun*))
+  (let* ((cl-gweb::*cur-user-session* (setup-user-session1))
+	 (cl-gweb::*callback-hash* (make-hash-table)))
+    (cl-gweb::evaluate-request nil nil)
     (assertEqual "3" (cl-gweb::render
 		      (cl-gweb::widget-tree cl-gweb::*cur-user-session*)))))
 
