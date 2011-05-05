@@ -162,3 +162,31 @@
       (:a :href (add-get-params-to-url "/cl-gweb" 
 				       "interaction-id" "1"
 				       "action-id" callback-key) (str link-text)))))
+
+(eval-when (:compile-toplevel)
+  (defvar *who-fun-names* '())
+  (defun register-who-fun (name)
+    (pushnew name *who-fun-names*)))
+
+(defmacro def-who-fun (name args &body body)
+  (register-who-fun name)
+  `(defun ,name ,args
+     ,@body))
+
+(defmacro html-to-string (&body body)
+  (labels ((replace-who-functions (forms)
+	     (mapcar #'(lambda (obj)
+			 (cond ((and (consp obj) (find (first obj) *who-fun-names*))
+				`(str ,obj))
+			       ((consp obj) (replace-who-functions obj))
+			       (t obj)))
+		     forms)))
+    (with-gensyms (string-arg)
+      `(with-html-output-to-string (,string-arg)
+	 ,@(replace-who-functions body)))))
+
+(defmacro create-form (&body body)
+  `(html-to-string
+     (:form :method "POST"
+	    @,body)))
+
