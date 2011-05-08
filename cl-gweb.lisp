@@ -15,6 +15,8 @@
 			   (make-instance 'acceptor
 					  ;;:address "127.0.0.1"
 					  :port *port*))))
+					  ;; :taskmaster (make-instance 
+					  ;; 	       'hunchentoot:single-threaded-taskmaster)))))
 
 (defun stop-gweb ()
   (when *acceptor*
@@ -30,7 +32,8 @@
    (widget-tree :initarg :widget-tree :accessor widget-tree)
    (callbacks :initarg :callbacks :accessor callbacks)
    (callback-key :initform 1 :accessor callback-key)
-   (callback-hash :initarg :callback-hash :accessor callback-hash)))
+   (callback-hash :initarg :callback-hash :accessor callback-hash)
+   (interaction-id :initform 1 :accessor interaction-id)))
 
 (defun initialize-user-session (hunchentoot-session)
   (let ((widget-tree (funcall *init-fun*)))
@@ -45,30 +48,30 @@
 (defun retrieve-user-session (hunchentoot-session)
   (gethash hunchentoot-session *user-sessions*))
 
-(defun gather-inputs ()
-  '())
-
 (define-easy-handler (root :uri "/cl-gweb")
     ((interaction-id :parameter-type 'integer)
-     action-id)
+     action-id
+     (inputs :parameter-type 'hash-table))
   (setf (content-type*) "text/html")
   (unless interaction-id (redirect (add-get-param-to-url "/cl-gweb" 
 							 "interaction-id" "1")))
   (unless *session* (store-user-session (initialize-user-session (start-session))))
   (let* ((*cur-user-session* (retrieve-user-session *session*))
-	 (inputs (gather-inputs))
 	 (*callback-hash* (callback-hash *cur-user-session*)))
     (evaluate-request action-id inputs)))
 
 (defun evaluate-request (action-id inputs)
   ;; evaluate actions with optional inputs - perform before renders - perform renders
+  (maphash #'(lambda (input-key input-val)
+	       (perform-action input-key input-val))
+	   inputs)
   (perform-action action-id)
   (pre-render-widgets)
   (render-session-widgets))
-
-(defun perform-action (action-id)
+  
+(defun perform-action (action-id &rest args)
   (awhen (gethash action-id *callback-hash*)
-    (funcall it)))
+    (apply it args)))
 
 (defun pre-render-widgets ()
   )
@@ -154,16 +157,20 @@
   `#'(lambda ()
        (,fn ,@args)))
 
-(defun create-link (callback link-text)
-  (let ((callback-key (gen-callback-key)))
-    (setf (gethash callback-key *callback-hash*)
-	  callback)
-    (with-html-output-to-string (s)
-      (:a :href (add-get-params-to-url "/cl-gweb" 
-				       "interaction-id" "1"
-				       "action-id" callback-key) (str link-text)))))
+(defmacro with-callback ((callback-key-arg callback-fn) &body body)
+  `(let ((,callback-key-arg (gen-callback-key)))
+     (setf (gethash ,callback-key-arg *callback-hash*)
+	   ,callback-fn)
+     ,@body))
 
-(eval-when (:compile-toplevel)
+(defun create-link (callback link-text)
+  (with-callback (callback-key callback)
+      (with-html-output-to-string (s)
+	(:a :href (add-get-params-to-url "/cl-gweb" 
+					 "interaction-id" "1"
+					 "action-id" callback-key) (str link-text)))))
+
+(eval-when (:compile-toplevel :execute)
   (defvar *who-fun-names* '())
   (defun register-who-fun (name)
     (pushnew name *who-fun-names*)))
@@ -187,6 +194,18 @@
 
 (defmacro create-form (&body body)
   `(html-to-string
-     (:form :method "POST"
-	    @,body)))
+     (:form :method "POST" :action "/cl-gweb?interaction-id=1"
+	    ,@body)))
 
+(def-who-fun create-text-input (value callback)
+  (with-callback (callback-key callback)
+    (html-to-string
+      (:input :type "text" :name callback-key :value value))))
+
+(def-who-fun create-submit-input (value callback)
+  (let ((submit-callback #'(lambda (val)
+			     (declare (ignore val))
+			     (funcall callback))))
+    (with-callback (callback-key submit-callback)
+      (html-to-string
+	(:input :type "submit" :name (format nil "~A{~A}" "inputs" callback-key) :value value)))))

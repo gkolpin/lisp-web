@@ -13,7 +13,10 @@
 	   #:defwidget
 	   #:show-widget
 	   #:link-fn
-	   #:create-link))
+	   #:create-link
+	   #:create-form
+	   #:create-text-input
+	   #:create-submit-input))
 
 (defpackage :test1
   (:use :common-lisp :cl-gweb :cl-who))
