@@ -197,15 +197,13 @@
      (:form :method "POST" :action "/cl-gweb?interaction-id=1"
 	    ,@body)))
 
-(def-who-fun create-text-input (value callback)
-  (with-callback (callback-key callback)
-    (html-to-string
-      (:input :type "text" :name callback-key :value value))))
-
-(def-who-fun create-submit-input (value callback)
+(def-who-fun create-basic-input (value type callback)
   (let ((submit-callback #'(lambda (val)
-			     (declare (ignore val))
-			     (funcall callback))))
+			     (if (eql type :submit)
+				 (funcall callback)
+				 (apply callback val)))))
     (with-callback (callback-key submit-callback)
       (html-to-string
-	(:input :type "submit" :name (format nil "~A{~A}" "inputs" callback-key) :value value)))))
+	(:input :type (symbol-name type)
+		:name (format nil "~A{~A}" "inputs" callback-key)
+		:value value)))))

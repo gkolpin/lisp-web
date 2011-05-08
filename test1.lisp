@@ -31,4 +31,4 @@
 
 (defmethod render-content ((widget test-form) (view t) &key)
   (create-form
-    (create-submit-input "submit this" #'(lambda () (print "submitted")))))
+    (create-basic-input "submit this" :submit #'(lambda () (print "submitted")))))

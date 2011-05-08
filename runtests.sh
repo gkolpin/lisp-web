@@ -1,2 +1,2 @@
 #!/bin/tcsh
-ccl -l "run-tests.lisp"
+sbcl --load "run-tests.lisp"
