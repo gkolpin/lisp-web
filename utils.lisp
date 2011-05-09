@@ -27,3 +27,12 @@
 (defmacro awhen (test &body body)
   `(let ((it ,test))
      (when it ,@body)))
+
+(defun limit (list n)
+  (labels ((rec (built-list rem n)
+	     (cond
+	       ((null rem) built-list)
+	       ((= 0 n) built-list)
+	       (t
+		(rec (cons (car rem) built-list) (cdr rem) (- n 1))))))
+    (nreverse (rec '() list n))))

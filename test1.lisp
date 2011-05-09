@@ -6,7 +6,7 @@
 
 (defwidget bar widget (a))
 
-(defwidget test-form widget ())
+(defwidget test-form widget ((messages :initform "")))
 
 (defun init-test1 ()
   (setf *init-fun* #'(lambda () (create-foo :a 1 :b (create-bar :a 3)
@@ -31,4 +31,9 @@
 
 (defmethod render-content ((widget test-form) (view t) &key)
   (create-form
-    (create-basic-input "submit this" :submit #'(lambda () (print "submitted")))))
+    (str (messages widget))
+    (create-basic-input "submit this" :submit #'(lambda ()
+						  (setf (messages widget)
+							(concatenate 'string
+								     (messages widget)
+								     "hello<br/>"))))))

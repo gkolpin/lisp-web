@@ -6,3 +6,4 @@
    Figure out if all before-renders happen before rendering starts
 ** def-page
    Can define a page with an associated url
+* 5/10/2011 - look at initform again in defwidget macro

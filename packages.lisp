@@ -15,7 +15,8 @@
 	   #:link-fn
 	   #:create-link
 	   #:create-form
-	   #:create-basic-input))
+	   #:create-basic-input
+	   #:*who-fun-names*))
 
 (defpackage :test1
   (:use :common-lisp :cl-gweb :cl-who))

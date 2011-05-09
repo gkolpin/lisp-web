@@ -7,6 +7,7 @@
 (defvar *callback-hash* nil)
 (defvar *init-fun* nil)
 (defvar *port* 4343)
+(defvar *base-url* "/cl-gweb")
 
 (defun start-gweb ()
   (when *debug*
@@ -31,9 +32,8 @@
   ((hunchentoot-session :initarg :hunchentoot-session :accessor hunchentoot-session)
    (widget-tree :initarg :widget-tree :accessor widget-tree)
    (callbacks :initarg :callbacks :accessor callbacks)
-   (callback-key :initform 1 :accessor callback-key)
-   (callback-hash :initarg :callback-hash :accessor callback-hash)
-   (interaction-id :initform 1 :accessor interaction-id)))
+   (frame-key :initform 1 :accessor frame-key)
+   (callback-hash :initarg :callback-hash :accessor callback-hash)))
 
 (defun initialize-user-session (hunchentoot-session)
   (let ((widget-tree (funcall *init-fun*)))
@@ -48,17 +48,14 @@
 (defun retrieve-user-session (hunchentoot-session)
   (gethash hunchentoot-session *user-sessions*))
 
-(define-easy-handler (root :uri "/cl-gweb")
-    ((interaction-id :parameter-type 'integer)
-     action-id
-     (inputs :parameter-type 'hash-table))
+(define-easy-handler (root :uri *base-url*)
+    ((frame-key :real-name "k") (inputs :parameter-type 'hash-table))
   (setf (content-type*) "text/html")
-  (unless interaction-id (redirect (add-get-param-to-url "/cl-gweb" 
-							 "interaction-id" "1")))
   (unless *session* (store-user-session (initialize-user-session (start-session))))
   (let* ((*cur-user-session* (retrieve-user-session *session*))
 	 (*callback-hash* (callback-hash *cur-user-session*)))
-    (evaluate-request action-id inputs)))
+    (unless frame-key (redirect (gen-new-frame-url)))
+    (evaluate-request frame-key inputs)))
 
 (defun evaluate-request (action-id inputs)
   ;; evaluate actions with optional inputs - perform before renders - perform renders
@@ -115,14 +112,23 @@
       nil))
 
 (defmacro defwidget (name inherits-from slot-defs)
-  ;; slot-defs: (<name> :widget)
+  ;; slot-defs: (<name> :widget :initform <initform>)
   `(progn
      (defclass ,name (,inherits-from)
-       ,(mapcar #'(lambda (slot-name) `(,slot-name
-					:initarg ,(intern (symbol-name slot-name)
-							  :keyword)
-					:accessor ,slot-name)) 
-		(mapcar #'slot-def-name slot-defs)))
+       ,(mapcar #'(lambda (slot-args)
+		    (destructuring-bind (slot-name &key (initform nil initform-p))
+			slot-args
+		      `(,slot-name
+			:initarg ,(intern (symbol-name slot-name)
+					  :keyword)
+			:accessor ,slot-name
+			,@(when initform-p (list :initform initform)))))
+		(mapcar #'(lambda (slot-def)
+			    (if (atom slot-def)
+				(list slot-def)
+				(cons (slot-def-name slot-def)
+				      (limit (member :initform slot-def) 2))))
+			slot-defs)))
      (defun ,(cat-symbols 'create '- name) (&key ,@(mapcar #'slot-def-name slot-defs))
        (make-instance ',name ,@(apply #'append
 				      (mapcar #'(lambda (slot-name)
@@ -141,7 +147,10 @@
 
 (defun gen-callback-key ()
   (concatenate 'string "k" 
-	       (write-to-string (pincf (callback-key *cur-user-session*)))))
+	       (write-to-string (pincf (frame-key *cur-user-session*)))))
+
+(defun gen-new-frame-url (&key frame-key)
+  (add-get-params-to-url *base-url* "k" (if frame-key frame-key (gen-callback-key))))
 
 (defun add-get-params-to-url (url &rest name-value-pairs)
   (labels ((rec (name-value-pairs url)
@@ -166,11 +175,9 @@
 (defun create-link (callback link-text)
   (with-callback (callback-key callback)
       (with-html-output-to-string (s)
-	(:a :href (add-get-params-to-url "/cl-gweb" 
-					 "interaction-id" "1"
-					 "action-id" callback-key) (str link-text)))))
+	(:a :href (gen-new-frame-url :frame-key callback-key) (str link-text)))))
 
-(eval-when (:compile-toplevel :execute)
+(eval-when (:compile-toplevel :load-toplevel :execute)
   (defvar *who-fun-names* '())
   (defun register-who-fun (name)
     (pushnew name *who-fun-names*)))
@@ -194,7 +201,7 @@
 
 (defmacro create-form (&body body)
   `(html-to-string
-     (:form :method "POST" :action "/cl-gweb?interaction-id=1"
+     (:form :method "POST" :action (gen-new-frame-url)
 	    ,@body)))
 
 (def-who-fun create-basic-input (value type callback)
