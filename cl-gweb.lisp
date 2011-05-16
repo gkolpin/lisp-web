@@ -239,8 +239,7 @@
 			      callback-key)
 		:value value)))))
 
-(def-who-fun select-input (values selected callback)
-  (declare (optimize (debug 3)))
+(def-who-fun select-input (&key values show selected callback on of)
   (let ((value-input-map (let ((list-idx 0))
 			   (mapcar #'(lambda (value)
 				       (list (pincf list-idx)
@@ -248,10 +247,15 @@
 				   values))))
     (labels ((select-input-callback (value)
 	       (let ((int-value (parse-integer value)))
-		 (funcall callback (second (assoc int-value value-input-map))))))
+		 (if callback
+		     (funcall callback (second (assoc int-value value-input-map)))
+		     (setf (slot-value of on) value)))))
       (with-callback (callback-key #'select-input-callback)
 	(html-to-string
 	  (:select :name (format nil "~A{~A}" "inputs" callback-key)
 		   (dolist (value value-input-map)
 		     (htm (:option :value (write-to-string (first value))
-				   (str (write-to-string (second value))))))))))))
+				   :selected (when (eql (second value)
+							selected)
+					       "selected")
+				   (esc (funcall show (second value))))))))))))

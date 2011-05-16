@@ -38,11 +38,14 @@
 						(concatenate 'string
 							     (messages widget)
 							     val))))
-      (select-input '(a b c d) nil #'(lambda (val)
-				       (setf (messages widget)
-					     (concatenate 'string
-							  (messages widget)
-							  (write-to-string val)))))
+      (select-input :values '(a b c d) :show #'write-to-string 
+		    :selected 'b
+		    :callback #'(lambda (val)
+				  (setf (messages widget)
+					(concatenate 'string
+						     (messages widget)
+						     (write-to-string val)))))
+      (:br)
       (submit-input "submit this"
 		    #'(lambda ()
 			;;(assert input-val)
