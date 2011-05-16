@@ -7,7 +7,7 @@
 (defvar *callback-hash* nil)
 (defvar *init-fun* nil)
 (defvar *port* 4343)
-(defvar *base-url* "/cl-gweb")
+(defconstant base-url "/cl-gweb")
 
 (defun start-gweb ()
   (when *debug*
@@ -48,7 +48,7 @@
 (defun retrieve-user-session (hunchentoot-session)
   (gethash hunchentoot-session *user-sessions*))
 
-(define-easy-handler (root :uri *base-url*)
+(define-easy-handler (root :uri base-url)
     ((frame-key :real-name "k") (inputs :parameter-type 'hash-table))
   (setf (content-type*) "text/html")
   (unless *session* (store-user-session (initialize-user-session (start-session))))
@@ -150,7 +150,7 @@
 	       (write-to-string (pincf (frame-key *cur-user-session*)))))
 
 (defun gen-new-frame-url (&key frame-key)
-  (add-get-params-to-url *base-url* "k" (if frame-key frame-key (gen-callback-key))))
+  (add-get-params-to-url base-url "k" (if frame-key frame-key (gen-callback-key))))
 
 (defun add-get-params-to-url (url &rest name-value-pairs)
   (labels ((rec (name-value-pairs url)
