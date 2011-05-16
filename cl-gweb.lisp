@@ -209,11 +209,11 @@
      (:form :method "POST" :action (gen-new-frame-url)
 	    ,@body)))
 
-(def-who-fun create-basic-input (value type callback)
+(def-who-fun create-basic-input (value type &key callback on of)
   (let ((submit-callback #'(lambda (val)
-			     (if (eql type :submit)
-				 (funcall callback)
-				 (funcall callback val)))))
+			     (cond ((eql type :submit) (funcall callback))
+				   (callback (funcall callback val))
+				   ((and on of) (setf (slot-value of on) val))))))
     (with-callback (callback-key submit-callback)
       (html-to-string
 	(:input :type (symbol-name type)

@@ -9,3 +9,4 @@
 * 5/10/2011 - look at initform again in defwidget macro
 * 5/15/2011 - look at continuations
 * 5/17/2011 - look at forms - inputs evaluated before submit - need to test this code
+* 5/20/2011 - come up with a higher level way of doing form input setting - lik 'on:of' in seaside
