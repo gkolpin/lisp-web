@@ -64,6 +64,29 @@
     (assertEqual "3" (cl-gweb::render
 		      (cl-gweb::widget-tree cl-gweb::*cur-user-session*)))))
 
+(defun test-form-inputs ()
+  (let* ((cl-gweb::*cur-user-session* (setup-user-session1))
+	 (cl-gweb::*callback-hash* (make-hash-table :test 'equal)))
+    (let ((pass1 nil)
+	  (pass2 nil))
+      (setf (gethash "key1" cl-gweb::*callback-hash*)
+	    #'(lambda (val)
+		(declare (ignore val))
+		(when (not pass2)
+		  (setf pass1 t))))
+      (setf (gethash "key2" cl-gweb::*callback-hash*)
+	    #'(lambda (val)
+		(declare (ignore val))
+		(when pass1
+		  (setf pass2 t))))
+      (let ((submit-hash (make-hash-table :test 'equal))
+	    (input-hash (make-hash-table :test 'equal)))
+	(setf (gethash "key1" input-hash) "key1")
+	(setf (gethash "key2" submit-hash) "key2")
+	(cl-gweb::evaluate-request "action-id" input-hash submit-hash)
+	(assertEql t (and pass1 pass2))))))
+
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; END TESTS
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -71,4 +94,5 @@
 (defun run-all-tests ()
   (run-tests
    'test1
-   'test-render))
+   'test-render
+   'test-form-inputs))

@@ -7,7 +7,7 @@
 (defvar *callback-hash* nil)
 (defvar *init-fun* nil)
 (defvar *port* 4343)
-(defconstant base-url "/cl-gweb")
+(defparameter base-url "/cl-gweb")
 
 (defun start-gweb ()
   (when *debug*
@@ -49,22 +49,25 @@
   (gethash hunchentoot-session *user-sessions*))
 
 (define-easy-handler (root :uri base-url)
-    ((frame-key :real-name "k") (inputs :parameter-type 'hash-table))
+    ((frame-key :real-name "k") (inputs :parameter-type 'hash-table) (submit-callbacks :parameter-type 'hash-table))
   (setf (content-type*) "text/html")
   (unless *session* (store-user-session (initialize-user-session (start-session))))
   (let* ((*cur-user-session* (retrieve-user-session *session*))
 	 (*callback-hash* (callback-hash *cur-user-session*)))
     (unless frame-key (redirect (gen-new-frame-url)))
-    (evaluate-request frame-key inputs)))
+    (evaluate-request frame-key inputs submit-callbacks)))
 
-(defun evaluate-request (action-id inputs)
+(defun evaluate-request (action-id inputs submit-callbacks)
   ;; evaluate actions with optional inputs - perform before renders - perform renders
-  (maphash #'(lambda (input-key input-val)
-	       (perform-action input-key input-val))
-	   inputs)
-  (perform-action action-id)
-  (pre-render-widgets)
-  (render-session-widgets))
+  (labels ((eval-callbacks (hashtable)
+	     (maphash #'(lambda (input-key input-val)
+			  (perform-action input-key input-val))
+		      hashtable)))
+    (eval-callbacks inputs)
+    (eval-callbacks submit-callbacks)
+    (perform-action action-id)
+    (pre-render-widgets)
+    (render-session-widgets)))
   
 (defun perform-action (action-id &rest args)
   (awhen (gethash action-id *callback-hash*)
@@ -110,6 +113,8 @@
   (if (listp slot-def)
       (find :widget slot-def)
       nil))
+
+(defgeneric child-widgets (widget))
 
 (defmacro defwidget (name inherits-from slot-defs)
   ;; slot-defs: (<name> :widget :initform <initform>)
@@ -208,9 +213,12 @@
   (let ((submit-callback #'(lambda (val)
 			     (if (eql type :submit)
 				 (funcall callback)
-				 (apply callback val)))))
+				 (funcall callback val)))))
     (with-callback (callback-key submit-callback)
       (html-to-string
 	(:input :type (symbol-name type)
-		:name (format nil "~A{~A}" "inputs" callback-key)
+		:name (format nil "~A{~A}" (if (eql type :submit)
+					       "submit-callbacks"
+					       "inputs")
+			      callback-key)
 		:value value)))))
