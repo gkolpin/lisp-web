@@ -192,6 +192,11 @@
   `(defun ,name ,args
      ,@body))
 
+(defmacro def-who-macro (name lambda-list &rest body)
+  (register-who-fun name)
+  `(defmacro ,name ,lambda-list
+     ,@body))
+
 (defmacro html-to-string (&body body)
   (labels ((replace-who-functions (forms)
 	     (mapcar #'(lambda (obj)
@@ -208,6 +213,15 @@
   `(html-to-string
      (:form :method "POST" :action (gen-new-frame-url)
 	    ,@body)))
+
+(def-who-macro text-input (value &rest create-basic-input-args)
+  `(create-basic-input ,value :text ,@create-basic-input-args))
+
+(def-who-macro hidden-input (value &rest create-basic-input-args)
+  `(create-basic-input ,value :hidden ,@create-basic-input-args))
+
+(def-who-fun submit-input (value callback)
+  (create-basic-input value :submit :callback callback))
 
 (def-who-fun create-basic-input (value type &key callback on of)
   (let ((submit-callback #'(lambda (val)

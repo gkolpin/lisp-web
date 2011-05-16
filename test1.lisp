@@ -33,13 +33,12 @@
   (let ((input-val nil))
     (create-form
       (str (messages widget))
-      (create-basic-input "input" :hidden
-			  :on 'messages :of widget)
-      (create-basic-input "submit this" :submit
-			  :callback #'(lambda ()
-					;;(assert input-val)
-					(setf input-val nil)
-					(setf (messages widget)
-					      (concatenate 'string
-							   (messages widget)
-							   "hello<br/>")))))))
+      (hidden-input "input" :on 'messages :of widget)
+      (submit-input "submit this"
+		    #'(lambda ()
+			;;(assert input-val)
+			(setf input-val nil)
+			(setf (messages widget)
+			      (concatenate 'string
+					   (messages widget)
+					   "hello<br/>")))))))

@@ -5,5 +5,6 @@
   :depends-on (hunchentoot cl-who closer-mop split-sequence)
   :components ((:file "cl-gweb" :depends-on ("packages" "utils"))
 	       (:file "utils" :depends-on ("packages"))
+	       (:file "test-mocks" :depends-on("packages" "cl-gweb"))
 	       (:file "packages")
 	       (:file "test1" :depends-on ("packages" "cl-gweb"))))
