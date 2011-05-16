@@ -18,7 +18,8 @@
 	   #:create-basic-input
 	   #:hidden-input
 	   #:text-input
-	   #:submit-input))
+	   #:submit-input
+	   #:select-input))
 
 (defpackage :test1
   (:use :common-lisp :cl-gweb :cl-who))
