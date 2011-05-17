@@ -46,6 +46,18 @@
 						     (messages widget)
 						     (write-to-string val)))))
       (:br)
+      (with-radio-group
+	(dotimes (n 2)
+	  (htm
+	   (let ((n n))
+	     (radio-button :selected nil
+			   :callback #'(lambda ()
+					 (setf (messages widget)
+					       (concatenate 'string
+							    (messages widget)
+							    (write-to-string n))))))
+	   (esc (write-to-string n)))))
+      (:br)
       (submit-input "submit this"
 		    #'(lambda ()
 			;;(assert input-val)

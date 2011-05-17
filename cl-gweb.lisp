@@ -8,6 +8,8 @@
 (defvar *init-fun* nil)
 (defvar *port* 4343)
 (defparameter base-url "/cl-gweb")
+(defvar *radio-group-name*)
+(defvar *radio-group-callback-map*)
 
 (defun start-gweb ()
   (when *debug*
@@ -225,7 +227,7 @@
 (def-who-fun submit-input (value callback)
   (create-basic-input value :submit :callback callback))
 
-(def-who-fun create-basic-input (value type &key callback on of)
+(def-who-fun create-basic-input (value type &key name callback on of checked)
   (let ((submit-callback #'(lambda (val)
 			     (cond ((eql type :submit) (funcall callback))
 				   (callback (funcall callback val))
@@ -233,11 +235,14 @@
     (with-callback (callback-key submit-callback)
       (html-to-string
 	(:input :type (symbol-name type)
-		:name (format nil "~A{~A}" (if (eql type :submit)
-					       "submit-callbacks"
-					       "inputs")
-			      callback-key)
-		:value value)))))
+		:name (if name 
+			  (format nil "~A{~A}" "inputs" name)
+			  (format nil "~A{~A}" (if (eql type :submit)
+						   "submit-callbacks"
+						   "inputs")
+				  callback-key))
+		:value value
+		:checked (when checked "checked"))))))
 
 (def-who-fun select-input (&key size values show selected callback on of)
   (let ((value-input-map (let ((list-idx 0))
@@ -260,3 +265,21 @@
 							selected)
 					       "selected")
 				   (esc (funcall show (second value))))))))))))
+
+(def-who-macro with-radio-group (&body body)
+  `(let ((*radio-group-name* (gen-callback-key))
+	 (*radio-group-callback-map* (make-hash-table :test 'equal)))
+     (html-to-string
+       ,@body
+       (let ((radio-callback-map *radio-group-callback-map*)
+	     (radio-group-name *radio-group-name*))
+	 (setf (gethash radio-group-name *callback-hash*)
+	       #'(lambda (val)
+		   (funcall (gethash val radio-callback-map))))))))
+
+(def-who-fun radio-button (&key selected callback)
+  (let ((callback-key (gen-callback-key)))
+    (setf (gethash callback-key *radio-group-callback-map*) callback)
+    (create-basic-input callback-key :radio :name *radio-group-name*
+			:callback nil
+			:checked selected)))

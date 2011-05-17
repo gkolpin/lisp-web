@@ -19,7 +19,9 @@
 	   #:hidden-input
 	   #:text-input
 	   #:submit-input
-	   #:select-input))
+	   #:select-input
+	   #:with-radio-group
+	   #:radio-button))
 
 (defpackage :test1
   (:use :common-lisp :cl-gweb :cl-who))
