@@ -236,7 +236,7 @@
       (html-to-string
 	(:input :type (symbol-name type)
 		:name (if name 
-			  (format nil "~A{~A}" "inputs" name)
+			  name
 			  (format nil "~A{~A}" (if (eql type :submit)
 						   "submit-callbacks"
 						   "inputs")
@@ -280,6 +280,7 @@
 (def-who-fun radio-button (&key selected callback)
   (let ((callback-key (gen-callback-key)))
     (setf (gethash callback-key *radio-group-callback-map*) callback)
-    (create-basic-input callback-key :radio :name *radio-group-name*
+    (create-basic-input callback-key :radio
+			:name (format nil "~A{~A}" "inputs" *radio-group-name*)
 			:callback nil
 			:checked selected)))
