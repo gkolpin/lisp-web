@@ -34,17 +34,18 @@
     (create-form
       (str (messages widget))
       (hidden-input "input" :callback #'(lambda (val)
-					  (setf (messages widget)
-						(concatenate 'string
-							     (messages widget)
-							     val))))
+					  (set-conc (messages widget)
+						    (html-to-string
+						      val
+						      (:br)))))
       (select-input :size 2 :values '(a b c d) :show #'write-to-string 
 		    :selected 'b
 		    :callback #'(lambda (val)
-				  (setf (messages widget)
-					(concatenate 'string
-						     (messages widget)
-						     (write-to-string val)))))
+				  (set-conc (messages widget)
+					    (html-to-string
+					      "select-val: "
+					      (str (write-to-string val))
+					      (:br)))))
       (:br)
       (with-radio-group
 	(dotimes (n 2)
@@ -52,17 +53,18 @@
 	   (let ((n n))
 	     (radio-button :selected nil
 			   :callback #'(lambda ()
-					 (setf (messages widget)
-					       (concatenate 'string
-							    (messages widget)
-							    (write-to-string n))))))
+					 (set-conc (messages widget)
+						   (html-to-string
+						     "radio-button: "
+						     (str (write-to-string n))
+						     (:br))))))
 	   (esc (write-to-string n)))))
       (:br)
       (submit-input "submit this"
 		    #'(lambda ()
 			;;(assert input-val)
 			(setf input-val nil)
-			(setf (messages widget)
-			      (concatenate 'string
-					   (messages widget)
-					   "hello<br/>")))))))
+			(set-conc (messages widget)
+				  (html-to-string
+				    "submit: "
+				    (str (write-to-string "submit")))))))))

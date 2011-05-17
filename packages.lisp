@@ -21,7 +21,9 @@
 	   #:submit-input
 	   #:select-input
 	   #:with-radio-group
-	   #:radio-button))
+	   #:radio-button
+	   #:set-conc
+	   #:html-to-string))
 
 (defpackage :test1
   (:use :common-lisp :cl-gweb :cl-who))

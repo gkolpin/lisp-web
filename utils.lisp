@@ -36,3 +36,5 @@
 	       (t
 		(rec (cons (car rem) built-list) (cdr rem) (- n 1))))))
     (nreverse (rec '() list n))))
+
+(define-modify-macro set-conc (&rest strings) (lambda (&rest strings) (apply #'concatenate (cons 'string strings))))
