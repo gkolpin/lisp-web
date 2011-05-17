@@ -36,7 +36,8 @@
       (hidden-input "input" :callback #'(lambda (val)
 					  (set-conc (messages widget)
 						    (html-to-string
-						      val
+						      "Hidden: "
+						      (str (write-to-string val))
 						      (:br)))))
       (select-input :size 2 :values '(a b c d) :show #'write-to-string 
 		    :selected 'b
@@ -67,4 +68,8 @@
 			(set-conc (messages widget)
 				  (html-to-string
 				    "submit: "
-				    (str (write-to-string "submit")))))))))
+				    (str (write-to-string "submit"))
+				    (:br) (:br)))))
+      (submit-input "clear"
+		    #'(lambda ()
+			(setf (messages widget) ""))))))
