@@ -225,21 +225,24 @@
   `(create-basic-input ,value :hidden ,@create-basic-input-args))
 
 (def-who-fun submit-input (value callback)
-  (create-basic-input value :submit :callback callback))
+  (labels ((submit-callback (val)
+	     (declare (ignore val))
+	     (funcall callback)))
+    (with-callback (callback-key #'submit-callback)
+      (create-basic-input value :submit :name (format nil "~A{~A}" "submit-callbacks"
+						      callback-key)
+			  :callback #'submit-callback))))
 
 (def-who-fun create-basic-input (value type &key name callback on of checked)
-  (let ((submit-callback #'(lambda (val)
-			     (cond ((eql type :submit) (funcall callback))
-				   (callback (funcall callback val))
+  (let ((input-callback #'(lambda (val)
+			     (cond (callback (funcall callback val))
 				   ((and on of) (setf (slot-value of on) val))))))
-    (with-callback (callback-key submit-callback)
+    (with-callback (callback-key input-callback)
       (html-to-string
 	(:input :type (symbol-name type)
 		:name (if name 
 			  name
-			  (format nil "~A{~A}" (if (eql type :submit)
-						   "submit-callbacks"
-						   "inputs")
+			  (format nil "~A{~A}" "inputs"
 				  callback-key))
 		:value value
 		:checked (when checked "checked"))))))
