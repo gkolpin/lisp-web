@@ -239,7 +239,7 @@
 			      callback-key)
 		:value value)))))
 
-(def-who-fun select-input (&key values show selected callback on of)
+(def-who-fun select-input (&key size values show selected callback on of)
   (let ((value-input-map (let ((list-idx 0))
 			   (mapcar #'(lambda (value)
 				       (list (pincf list-idx)
@@ -252,7 +252,8 @@
 		     (setf (slot-value of on) value)))))
       (with-callback (callback-key #'select-input-callback)
 	(html-to-string
-	  (:select :name (format nil "~A{~A}" "inputs" callback-key)
+	  (:select :size (when size (write-to-string size))
+		   :name (format nil "~A{~A}" "inputs" callback-key)
 		   (dolist (value value-input-map)
 		     (htm (:option :value (write-to-string (first value))
 				   :selected (when (eql (second value)

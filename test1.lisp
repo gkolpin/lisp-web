@@ -38,7 +38,7 @@
 						(concatenate 'string
 							     (messages widget)
 							     val))))
-      (select-input :values '(a b c d) :show #'write-to-string 
+      (select-input :size 2 :values '(a b c d) :show #'write-to-string 
 		    :selected 'b
 		    :callback #'(lambda (val)
 				  (setf (messages widget)
