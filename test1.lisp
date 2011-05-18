@@ -70,6 +70,8 @@
 							      "NOT checked"))
 						     (:br)))))
       (:br)
+      (create-link #'(lambda () (setf (messages widget) "")) "clear link")
+      (:br)
       (submit-input "submit this"
 		    #'(lambda ()
 			;;(assert input-val)

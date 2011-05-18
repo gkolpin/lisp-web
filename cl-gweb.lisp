@@ -9,6 +9,7 @@
 (defvar *init-fun* nil)
 (defvar *port* 4343)
 (defparameter base-url "/cl-gweb")
+(defvar *form-callback-hash* nil)
 (defvar *radio-group-name*)
 (defvar *radio-group-callback-map*)
 
@@ -176,10 +177,16 @@
   `#'(lambda ()
        (,fn ,@args)))
 
-(defmacro with-callback ((callback-key-arg callback-fn &optional (callback-required nil callback-required-p))
-			 &body body)
+(defmacro with-link-callback ((callback-key-arg callback-fn) &body body)
+  `(let ((,callback-key-arg (gen-callback-key)))
+     (setf (gethash ,callback-key-arg *callback-hash*)
+	   ,callback-fn)
+     ,@body))
+
+(defmacro with-form-callback ((callback-key-arg callback-fn &optional (callback-required nil callback-required-p))
+			      &body body)
   (let ((get-regular-callback
-	  `(setf (gethash ,callback-key-arg *callback-hash*)
+	  `(setf (gethash ,callback-key-arg *form-callback-hash*)
 		 ,callback-fn)))
     `(let ((,callback-key-arg (gen-callback-key)))
        ,(if callback-required-p
@@ -190,11 +197,11 @@
 	    get-regular-callback)
        ,@body)))
 
-(defun create-link (callback link-text)
+(def-who-fun create-link (callback link-text)
   (let ((callback #'(lambda (inputs submit-inputs)
 		      (declare (ignore inputs submit-inputs))
 		      (funcall callback))))
-    (with-callback (callback-key callback)
+    (with-link-callback (callback-key callback)
       (with-html-output-to-string (s)
 	(:a :href (gen-new-frame-url :frame-key callback-key) (str link-text))))))
 
@@ -246,13 +253,13 @@
     `(let ((,form-callback-arg nil)
 	   (,form-callback-key-arg (gen-callback-key))
 	   (,html-arg nil))
-       (let* ((*callback-hash* (make-hash-table :test 'equal))
+       (let* ((*form-callback-hash* (make-hash-table :test 'equal))
 	      (*callback-required-hash* (make-hash-table :test 'equal))
 	      (,frame-url-arg (gen-new-frame-url :frame-key ,form-callback-key-arg)))
 	 (setf ,html-arg (html-to-string
 			  (:form :method "POST" :action ,frame-url-arg
 				 ,@body)))
-	 (let ((callback-hash *callback-hash*)
+	 (let ((callback-hash *form-callback-hash*)
 	       (callback-required-hash *callback-required-hash*))
 	   (setf ,form-callback-arg
 		 #'(lambda (inputs submit-callbacks)
@@ -275,7 +282,7 @@
   (labels ((submit-callback (val)
 	     (declare (ignore val))
 	     (funcall callback)))
-    (with-callback (callback-key #'submit-callback)
+    (with-form-callback (callback-key #'submit-callback)
       (create-basic-input value :submit :name (format nil "~A{~A}" "submit-callbacks"
 						      callback-key)
 			  :callback #'submit-callback))))
@@ -284,7 +291,7 @@
   (let ((input-callback #'(lambda (val)
 			     (cond (callback (funcall callback val))
 				   ((and on of) (setf (slot-value of on) val))))))
-    (with-callback (callback-key input-callback callback-required)
+    (with-form-callback (callback-key input-callback callback-required)
       (html-to-string
 	(:input :type (symbol-name type)
 		:name (if name 
@@ -305,7 +312,7 @@
 		 (if callback
 		     (funcall callback (second (assoc int-value value-input-map)))
 		     (setf (slot-value of on) value)))))
-      (with-callback (callback-key #'select-input-callback)
+      (with-form-callback (callback-key #'select-input-callback)
 	(html-to-string
 	  (:select :size (when size (write-to-string size))
 		   :name (format nil "~A{~A}" "inputs" callback-key)
@@ -323,7 +330,7 @@
        ,@body
        (let ((radio-callback-map *radio-group-callback-map*)
 	     (radio-group-name *radio-group-name*))
-	 (setf (gethash radio-group-name *callback-hash*)
+	 (setf (gethash radio-group-name *form-callback-hash*)
 	       #'(lambda (val)
 		   (funcall (gethash val radio-callback-map))))))))
 
