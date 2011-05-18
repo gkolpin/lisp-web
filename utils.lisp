@@ -42,3 +42,7 @@
     (nreverse (rec '() list n))))
 
 (define-modify-macro set-conc (&rest strings) (lambda (&rest strings) (apply #'concatenate (cons 'string strings))))
+
+(defmacro bind-nil (vars &body body)
+  `(let ,(mapcar #'(lambda (var) `(,var nil)) vars)
+     ,@body))

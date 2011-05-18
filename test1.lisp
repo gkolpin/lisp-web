@@ -70,6 +70,14 @@
 							      "NOT checked"))
 						     (:br)))))
       (:br)
+      (date-input :callback #'(lambda (date)
+				(set-conc (messages widget)
+					  (html-to-string
+					    "date: "
+					    (str (format-timestring nil
+								    date))
+					    (:br)))))
+      (:br)
       (create-link #'(lambda () (setf (messages widget) "")) "clear link")
       (:br)
       (submit-input "submit this"

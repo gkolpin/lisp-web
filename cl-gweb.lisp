@@ -1,3 +1,5 @@
+(declaim (optimize (debug 3)))
+
 (in-package :cl-gweb)
 
 (defvar *debug* nil)
@@ -177,6 +179,14 @@
   `#'(lambda ()
        (,fn ,@args)))
 
+(defmacro setf-fn (place &optional val-modifier)
+  (with-gensyms (val-arg)
+    `#'(lambda (,val-arg)
+	 (setf ,place 
+	       ,(if val-modifier
+		    `(funcall ,val-modifier ,val-arg)
+		    val-arg)))))
+
 (defmacro with-link-callback ((callback-key-arg callback-fn) &body body)
   `(let ((,callback-key-arg (gen-callback-key)))
      (setf (gethash ,callback-key-arg *callback-hash*)
@@ -351,3 +361,42 @@
 			:name (format nil "~A{~A}" "inputs" *radio-group-name*)
 			:callback nil
 			:checked selected)))
+
+(defmacro with-prereq-callbacks (callback pre-requisite-callbacks &body body)
+  (with-gensyms (prereqs-left-arg callback-arg)
+    `(let ((,prereqs-left-arg ,(length pre-requisite-callbacks))
+	   (,callback-arg ,callback))
+       (let ,(mapcar #'(lambda (pre-req-callback)
+			 `(,(first pre-req-callback)
+			    #'(lambda (val)
+				(decf ,prereqs-left-arg)
+				(funcall ,(second pre-req-callback) val)
+				(when (= 0 ,prereqs-left-arg)
+				  (funcall ,callback-arg)))))
+		     pre-requisite-callbacks)
+	 ,@body))))
+
+(def-who-fun date-input (&key callback with options)
+  (let ((months '(january february march april may june july august september october
+		  november december)))
+    (bind-nil (month day year)
+      (with-prereq-callbacks #'(lambda ()
+				 (funcall callback
+					  (encode-timestamp 0 0 0 0 day
+							    (1+
+							     (position month months))
+							    year)))
+	  ((month-select-callback (setf-fn month))
+	   (day-callback (setf-fn day #'parse-integer))
+	   (year-callback (setf-fn year #'parse-integer)))
+	(let ((now (today)))
+	  (html-to-string
+	    (select-input :values months
+			  :show #'(lambda (month) (format nil "~:(~a~)" month))
+			  :callback month-select-callback
+			  :selected (if (null with) (nth (1- (timestamp-month now))
+							 months)))
+	    (text-input (if (null with) (timestamp-day now))
+			:callback day-callback :callback-required t)
+	    (text-input (if (null with) (timestamp-year now))
+			:callback year-callback :callback-required t)))))))

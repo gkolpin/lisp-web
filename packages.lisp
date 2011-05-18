@@ -1,5 +1,5 @@
 (defpackage :cl-gweb
-  (:use :common-lisp :hunchentoot :cl-who :url-rewrite)
+  (:use :common-lisp :hunchentoot :cl-who :url-rewrite :local-time)
   (:shadowing-import-from :hunchentoot #:url-encode)
   (:export #:*debug*
 	   #:render
@@ -24,7 +24,8 @@
 	   #:radio-button
 	   #:set-conc
 	   #:html-to-string
-	   #:checkbox))
+	   #:checkbox
+	   #:date-input))
 
 (defpackage :test1
-  (:use :common-lisp :cl-gweb :cl-who))
+  (:use :common-lisp :cl-gweb :cl-who :local-time))
