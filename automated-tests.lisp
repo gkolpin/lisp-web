@@ -97,5 +97,5 @@
 (defun run-all-tests ()
   (run-tests
    'test1
-   'test-render
-   'test-form-inputs))
+   'test-render))
+   ;;'test-form-inputs))

@@ -197,14 +197,6 @@
 	    get-regular-callback)
        ,@body)))
 
-(def-who-fun create-link (callback link-text)
-  (let ((callback #'(lambda (inputs submit-inputs)
-		      (declare (ignore inputs submit-inputs))
-		      (funcall callback))))
-    (with-link-callback (callback-key callback)
-      (with-html-output-to-string (s)
-	(:a :href (gen-new-frame-url :frame-key callback-key) (str link-text))))))
-
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (defvar *who-fun-names* '())
   (defun register-who-fun (name)
@@ -231,6 +223,14 @@
     (with-gensyms (string-arg)
       `(with-html-output-to-string (,string-arg)
 	 ,@(replace-who-functions body)))))
+
+(def-who-fun create-link (callback link-text)
+  (let ((callback #'(lambda (inputs submit-inputs)
+		      (declare (ignore inputs submit-inputs))
+		      (funcall callback))))
+    (with-link-callback (callback-key callback)
+      (with-html-output-to-string (s)
+	(:a :href (gen-new-frame-url :frame-key callback-key) (str link-text))))))
 
 (defun form-callback-fun (callback-hash callback-required-hash
 			  inputs submit-inputs)
@@ -324,15 +324,16 @@
 				   (esc (funcall show (second value))))))))))))
 
 (def-who-macro with-radio-group (&body body)
-  `(let ((*radio-group-name* (gen-callback-key))
-	 (*radio-group-callback-map* (make-hash-table :test 'equal)))
-     (html-to-string
-       ,@body
-       (let ((radio-callback-map *radio-group-callback-map*)
-	     (radio-group-name *radio-group-name*))
-	 (setf (gethash radio-group-name *form-callback-hash*)
-	       #'(lambda (val)
-		   (funcall (gethash val radio-callback-map))))))))
+  (with-gensyms (html-arg)
+    `(let ((*radio-group-name* (gen-callback-key))
+	   (*radio-group-callback-map* (make-hash-table :test 'equal)))
+       (let ((,html-arg (html-to-string ,@body)))
+	 (let ((radio-callback-map *radio-group-callback-map*)
+	       (radio-group-name *radio-group-name*))
+	   (setf (gethash radio-group-name *form-callback-hash*)
+		 #'(lambda (val)
+		     (funcall (gethash val radio-callback-map)))))
+	 ,html-arg))))
 
 (def-who-fun radio-button (&key selected callback)
   (let ((callback-key (gen-callback-key)))
