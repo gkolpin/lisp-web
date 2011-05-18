@@ -275,8 +275,17 @@
 (def-who-macro hidden-input (value &rest create-basic-input-args)
   `(create-basic-input ,value :hidden ,@create-basic-input-args))
 
-(def-who-macro checkbox (&rest create-basic-input-args)
-  `(create-basic-input nil :checkbox ,@create-basic-input-args :callback-required t))
+(def-who-fun checkbox (&key checked callback on of on-true on-false)
+  (let ((on-true-false-callback
+	 #'(lambda (val)
+	     (if val
+		 (funcall on-true)
+		 (funcall on-false)))))
+    (if (and on-true on-false)
+	(create-basic-input nil :checkbox :checked checked
+			    :callback on-true-false-callback :callback-required t)
+	(create-basic-input nil :checkbox	:checked checked 
+			    :callback callback :on on :of of :callback-required t))))
 
 (def-who-fun submit-input (value callback)
   (labels ((submit-callback (val)

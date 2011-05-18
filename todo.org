@@ -22,3 +22,5 @@
 * 5/28/2011
   -redo the create-form macro so that links can be placed in forms without their callbacks being placed in the forms *callback-hash*
   -redo radio-group macro so that it resembles the create-form macro
+* 5/29/2011
+  - test on-true and on-false for checkbox
