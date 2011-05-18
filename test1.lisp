@@ -61,6 +61,15 @@
 						     (:br))))))
 	   (esc (write-to-string n)))))
       (:br)
+      (checkbox :checked t :callback #'(lambda (checked)
+					 (set-conc (messages widget)
+						   (html-to-string
+						     "checkbox: "
+						     (str (if checked
+							      "checked"
+							      "NOT checked"))
+						     (:br)))))
+      (:br)
       (submit-input "submit this"
 		    #'(lambda ()
 			;;(assert input-val)

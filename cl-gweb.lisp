@@ -5,6 +5,7 @@
 (defvar *cur-user-session* nil)
 (defvar *user-sessions* (make-hash-table))
 (defvar *callback-hash* nil)
+(defvar *callback-required-hash* nil)
 (defvar *init-fun* nil)
 (defvar *port* 4343)
 (defparameter base-url "/cl-gweb")
@@ -17,9 +18,11 @@
   (hunchentoot:start (setf *acceptor* 
 			   (make-instance 'acceptor
 					  ;;:address "127.0.0.1"
-					  :port *port*))))
-					  ;; :taskmaster (make-instance 
-					  ;; 	       'hunchentoot:single-threaded-taskmaster)))))
+					  :port *port*
+					  :taskmaster (make-instance 
+						       (if *debug*
+							   'hunchentoot:single-threaded-taskmaster
+							   'hunchentoot:one-thread-per-connection-taskmaster))))))
 
 (defun stop-gweb ()
   (when *acceptor*
@@ -35,14 +38,16 @@
    (widget-tree :initarg :widget-tree :accessor widget-tree)
    (callbacks :initarg :callbacks :accessor callbacks)
    (frame-key :initform 1 :accessor frame-key)
-   (callback-hash :initarg :callback-hash :accessor callback-hash)))
+   (callback-hash :initarg :callback-hash :accessor callback-hash)
+   (callback-required-hash :initarg :callback-required-hash :accessor callback-required-hash)))
 
 (defun initialize-user-session (hunchentoot-session)
   (let ((widget-tree (funcall *init-fun*)))
     (make-instance 'user-session 
 		   :hunchentoot-session hunchentoot-session
 		   :widget-tree widget-tree
-		   :callback-hash (make-hash-table :test 'equal))))
+		   :callback-hash (make-hash-table :test 'equal)
+		   :callback-required-hash (make-hash-table :test 'equal))))
 
 (defun store-user-session (user-session)
   (setf (gethash (hunchentoot-session user-session) *user-sessions*) user-session))
@@ -57,12 +62,24 @@
   (unless (retrieve-user-session *session*)
     (store-user-session (initialize-user-session (start-session))))
   (let* ((*cur-user-session* (retrieve-user-session *session*))
-	 (*callback-hash* (callback-hash *cur-user-session*)))
+	 (*callback-hash* (callback-hash *cur-user-session*))
+	 (*callback-required-hash* (callback-required-hash *cur-user-session*)))
     (unless frame-key (redirect (gen-new-frame-url)))
     (evaluate-request frame-key inputs submit-callbacks)))
 
+(defun remove-callbacks ()
+  (clrhash *callback-hash*)
+  (clrhash *callback-required-hash*))
+
 (defun evaluate-request (action-id inputs submit-callbacks)
   ;; evaluate actions with optional inputs - perform before renders - perform renders
+  ;; execute required callbacks
+  (let ((*callback-hash* *callback-required-hash*))
+    (maphash #'(lambda (callback-key callback)
+		 (declare (ignore callback))
+		 (unless (gethash callback-key inputs)
+		   (perform-action callback-key nil)))
+	     *callback-required-hash*))
   (labels ((eval-callbacks (hashtable)
 	     (maphash #'(lambda (input-key input-val)
 			  (perform-action input-key input-val))
@@ -70,6 +87,7 @@
     (eval-callbacks inputs)
     (eval-callbacks submit-callbacks)
     (perform-action action-id)
+    (remove-callbacks)
     (pre-render-widgets)
     (render-session-widgets)))
   
@@ -175,11 +193,19 @@
   `#'(lambda ()
        (,fn ,@args)))
 
-(defmacro with-callback ((callback-key-arg callback-fn) &body body)
-  `(let ((,callback-key-arg (gen-callback-key)))
-     (setf (gethash ,callback-key-arg *callback-hash*)
-	   ,callback-fn)
-     ,@body))
+(defmacro with-callback ((callback-key-arg callback-fn &optional (callback-required nil callback-required-p))
+			 &body body)
+  (let ((get-regular-callback
+	  `(setf (gethash ,callback-key-arg *callback-hash*)
+		 ,callback-fn)))
+    `(let ((,callback-key-arg (gen-callback-key)))
+       ,(if callback-required-p
+	    `(if ,callback-required
+		 (setf (gethash ,callback-key-arg *callback-required-hash*)
+		       ,callback-fn)
+		 ,get-regular-callback)
+	    get-regular-callback)
+       ,@body)))
 
 (defun create-link (callback link-text)
   (with-callback (callback-key callback)
@@ -224,6 +250,9 @@
 (def-who-macro hidden-input (value &rest create-basic-input-args)
   `(create-basic-input ,value :hidden ,@create-basic-input-args))
 
+(def-who-macro checkbox (&rest create-basic-input-args)
+  `(create-basic-input nil :checkbox ,@create-basic-input-args :callback-required t))
+
 (def-who-fun submit-input (value callback)
   (labels ((submit-callback (val)
 	     (declare (ignore val))
@@ -233,11 +262,11 @@
 						      callback-key)
 			  :callback #'submit-callback))))
 
-(def-who-fun create-basic-input (value type &key name callback on of checked)
+(def-who-fun create-basic-input (value type &key name callback on of checked (callback-required nil))
   (let ((input-callback #'(lambda (val)
 			     (cond (callback (funcall callback val))
 				   ((and on of) (setf (slot-value of on) val))))))
-    (with-callback (callback-key input-callback)
+    (with-callback (callback-key input-callback callback-required)
       (html-to-string
 	(:input :type (symbol-name type)
 		:name (if name 

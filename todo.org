@@ -12,3 +12,7 @@
 * 5/20/2011 - come up with a higher level way of doing form input setting - lik 'on:of' in seaside
 * 5/21/2011 - form dropdown menus - need to allow for pre-selecting an input and allowing object values to display themselves
 * 5/22/2011 - Look at removing submit-specific stuff from create-basic-input
+* 5/25/2011 -
+  Fix up with-callback to remove code duplication and add in calls to the callback required hash,
+  and look at single-threaded taskmaster and debugging (it doesn't appear to be working when *debug*
+  should be true

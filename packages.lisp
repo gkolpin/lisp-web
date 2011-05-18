@@ -23,7 +23,8 @@
 	   #:with-radio-group
 	   #:radio-button
 	   #:set-conc
-	   #:html-to-string))
+	   #:html-to-string
+	   #:checkbox))
 
 (defpackage :test1
   (:use :common-lisp :cl-gweb :cl-who))
