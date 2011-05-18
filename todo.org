@@ -16,3 +16,9 @@
   Fix up with-callback to remove code duplication and add in calls to the callback required hash,
   and look at single-threaded taskmaster and debugging (it doesn't appear to be working when *debug*
   should be true
+* 5/27/2011
+  -checkbox callback is getting called even when the increment link is clicked. We need to keep callbacks for a form grouped together, so that the callbacks
+  for the form only get called when the form is submitted
+* 5/28/2011
+  -redo the create-form macro so that links can be placed in forms without their callbacks being placed in the forms *callback-hash*
+  -redo radio-group macro so that it resembles the create-form macro

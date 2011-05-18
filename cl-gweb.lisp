@@ -38,16 +38,14 @@
    (widget-tree :initarg :widget-tree :accessor widget-tree)
    (callbacks :initarg :callbacks :accessor callbacks)
    (frame-key :initform 1 :accessor frame-key)
-   (callback-hash :initarg :callback-hash :accessor callback-hash)
-   (callback-required-hash :initarg :callback-required-hash :accessor callback-required-hash)))
+   (callback-hash :initarg :callback-hash :accessor callback-hash)))
 
 (defun initialize-user-session (hunchentoot-session)
   (let ((widget-tree (funcall *init-fun*)))
     (make-instance 'user-session 
 		   :hunchentoot-session hunchentoot-session
 		   :widget-tree widget-tree
-		   :callback-hash (make-hash-table :test 'equal)
-		   :callback-required-hash (make-hash-table :test 'equal))))
+		   :callback-hash (make-hash-table :test 'equal))))
 
 (defun store-user-session (user-session)
   (setf (gethash (hunchentoot-session user-session) *user-sessions*) user-session))
@@ -62,34 +60,19 @@
   (unless (retrieve-user-session *session*)
     (store-user-session (initialize-user-session (start-session))))
   (let* ((*cur-user-session* (retrieve-user-session *session*))
-	 (*callback-hash* (callback-hash *cur-user-session*))
-	 (*callback-required-hash* (callback-required-hash *cur-user-session*)))
+	 (*callback-hash* (callback-hash *cur-user-session*)))
     (unless frame-key (redirect (gen-new-frame-url)))
     (evaluate-request frame-key inputs submit-callbacks)))
 
 (defun remove-callbacks ()
-  (clrhash *callback-hash*)
-  (clrhash *callback-required-hash*))
+  (clrhash *callback-hash*))
 
 (defun evaluate-request (action-id inputs submit-callbacks)
   ;; evaluate actions with optional inputs - perform before renders - perform renders
-  ;; execute required callbacks
-  (let ((*callback-hash* *callback-required-hash*))
-    (maphash #'(lambda (callback-key callback)
-		 (declare (ignore callback))
-		 (unless (gethash callback-key inputs)
-		   (perform-action callback-key nil)))
-	     *callback-required-hash*))
-  (labels ((eval-callbacks (hashtable)
-	     (maphash #'(lambda (input-key input-val)
-			  (perform-action input-key input-val))
-		      hashtable)))
-    (eval-callbacks inputs)
-    (eval-callbacks submit-callbacks)
-    (perform-action action-id)
-    (remove-callbacks)
-    (pre-render-widgets)
-    (render-session-widgets)))
+  (perform-action action-id inputs submit-callbacks)
+  (remove-callbacks)
+  (pre-render-widgets)
+  (render-session-widgets))
   
 (defun perform-action (action-id &rest args)
   (awhen (gethash action-id *callback-hash*)
@@ -208,9 +191,12 @@
        ,@body)))
 
 (defun create-link (callback link-text)
-  (with-callback (callback-key callback)
+  (let ((callback #'(lambda (inputs submit-inputs)
+		      (declare (ignore inputs submit-inputs))
+		      (funcall callback))))
+    (with-callback (callback-key callback)
       (with-html-output-to-string (s)
-	(:a :href (gen-new-frame-url :frame-key callback-key) (str link-text)))))
+	(:a :href (gen-new-frame-url :frame-key callback-key) (str link-text))))))
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (defvar *who-fun-names* '())
@@ -239,10 +225,42 @@
       `(with-html-output-to-string (,string-arg)
 	 ,@(replace-who-functions body)))))
 
+(defun form-callback-fun (callback-hash callback-required-hash
+			  inputs submit-inputs)
+  ;; perform regular input callbacks
+  (maphash #'(lambda (input-key input-val)
+	       (awhen (gethash input-key callback-hash) (funcall it input-val)))
+  	   inputs)
+  ;; perform required input callbacks
+  (maphash #'(lambda (callback-key callback)
+  	       (multiple-value-bind (val val-p) (gethash callback-key inputs)
+  		 (if val-p (funcall callback val) (funcall callback nil))))
+  	   callback-required-hash)
+  ;; perform submit callbacks
+  (maphash #'(lambda (submit-name submit-val)
+   	       (funcall (gethash submit-name callback-hash) submit-val))
+   	   submit-inputs))
+
 (defmacro create-form (&body body)
-  `(html-to-string
-     (:form :method "POST" :action (gen-new-frame-url)
-	    ,@body)))
+  (with-gensyms (html-arg frame-url-arg form-callback-key-arg form-callback-arg)
+    `(let ((,form-callback-arg nil)
+	   (,form-callback-key-arg (gen-callback-key))
+	   (,html-arg nil))
+       (let* ((*callback-hash* (make-hash-table :test 'equal))
+	      (*callback-required-hash* (make-hash-table :test 'equal))
+	      (,frame-url-arg (gen-new-frame-url :frame-key ,form-callback-key-arg)))
+	 (setf ,html-arg (html-to-string
+			  (:form :method "POST" :action ,frame-url-arg
+				 ,@body)))
+	 (let ((callback-hash *callback-hash*)
+	       (callback-required-hash *callback-required-hash*))
+	   (setf ,form-callback-arg
+		 #'(lambda (inputs submit-callbacks)
+		     (form-callback-fun callback-hash callback-required-hash
+					inputs submit-callbacks)))))
+       (setf (gethash ,form-callback-key-arg *callback-hash*)
+	     ,form-callback-arg)
+       ,html-arg)))
 
 (def-who-macro text-input (value &rest create-basic-input-args)
   `(create-basic-input ,value :text ,@create-basic-input-args))

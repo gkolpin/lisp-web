@@ -28,6 +28,10 @@
   `(let ((it ,test))
      (when it ,@body)))
 
+(defmacro aif (test then &optional else)
+  `(let ((it ,test))
+     (if it ,then ,else)))
+
 (defun limit (list n)
   (labels ((rec (built-list rem n)
 	     (cond
