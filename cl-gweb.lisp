@@ -392,15 +392,27 @@
 	  ((month-select-callback (setf-fn month))
 	   (day-callback (setf-fn day #'parse-integer))
 	   (year-callback (setf-fn year #'parse-integer)))
-	(let ((now (today)))
+	(let* ((now (today))
+	       (month-html
+		(select-input :values months
+			      :show #'(lambda (month) (format nil "~:(~a~)" month))
+			      :callback month-select-callback
+			      :selected (nth (1- (timestamp-month (if with with now))) months)))
+	       (day-html
+		(text-input (timestamp-day (if with with now))
+			    :callback day-callback :callback-required t
+			    :size 2 :maxlength 2))
+	       (year-html (text-input (timestamp-year (if with with now))
+				      :callback year-callback :callback-required t
+				      :size 2 :maxlength 4)))
 	  (html-to-string
-	    (select-input :values months
-			  :show #'(lambda (month) (format nil "~:(~a~)" month))
-			  :callback month-select-callback
-			  :selected (nth (1- (timestamp-month (if with with now))) months))
-	    (text-input (timestamp-day (if with with now))
-			:callback day-callback :callback-required t
-			:size 2 :maxlength 2)
-	    (text-input (timestamp-year (if with with now))
-			:callback year-callback :callback-required t
-			:size 2 :maxlength 4)))))))
+	    (if options
+		(dolist (option options)
+		  (htm (str (case option
+			      (:day day-html)
+			      (:year year-html)
+			      (:month month-html)))))
+		(htm
+		 (str month-html)
+		 (str day-html)
+		 (str year-html)))))))))
