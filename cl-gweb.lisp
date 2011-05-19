@@ -306,7 +306,8 @@
 						      callback-key)
 			  :callback #'submit-callback))))
 
-(def-who-fun create-basic-input (value type &key name callback on of checked (callback-required nil) maxlength)
+(def-who-fun create-basic-input (value type &key name callback on of checked
+				       (callback-required nil) maxlength size)
   (let ((input-callback #'(lambda (val)
 			     (cond (callback (funcall callback val))
 				   ((and on of) (setf (slot-value of on) val))))))
@@ -319,7 +320,8 @@
 				  callback-key))
 		:value value
 		:checked (when checked "checked")
-		:maxlength (when maxlength maxlength))))))
+		:maxlength (when maxlength maxlength)
+		:size (when size size))))))
 
 (def-who-fun select-input (&key size values show selected callback on of)
   (let ((value-input-map (let ((list-idx 0))
@@ -399,7 +401,7 @@
 							 months)))
 	    (text-input (if (null with) (timestamp-day now))
 			:callback day-callback :callback-required t
-			:maxlength 2)
+			:size 2 :maxlength 2)
 	    (text-input (if (null with) (timestamp-year now))
 			:callback year-callback :callback-required t
-			:maxlength 4)))))))
+			:size 2 :maxlength 4)))))))
