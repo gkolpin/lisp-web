@@ -24,3 +24,5 @@
   -redo radio-group macro so that it resembles the create-form macro
 * 5/29/2011
   - test on-true and on-false for checkbox
+  - finish 'with' param for date-input
+  - finish 'options' param for date-input
