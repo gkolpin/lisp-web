@@ -76,7 +76,8 @@
 					    "date: "
 					    (str (format-timestring nil
 								    date))
-					    (:br)))))
+					    (:br))))
+		  :with (encode-timestamp 0 0 0 0 27 1 1982))
       (:br)
       (create-link #'(lambda () (setf (messages widget) "")) "clear link")
       (:br)

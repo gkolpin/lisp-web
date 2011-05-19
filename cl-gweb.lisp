@@ -397,11 +397,10 @@
 	    (select-input :values months
 			  :show #'(lambda (month) (format nil "~:(~a~)" month))
 			  :callback month-select-callback
-			  :selected (if (null with) (nth (1- (timestamp-month now))
-							 months)))
-	    (text-input (if (null with) (timestamp-day now))
+			  :selected (nth (1- (timestamp-month (if with with now))) months))
+	    (text-input (timestamp-day (if with with now))
 			:callback day-callback :callback-required t
 			:size 2 :maxlength 2)
-	    (text-input (if (null with) (timestamp-year now))
+	    (text-input (timestamp-year (if with with now))
 			:callback year-callback :callback-required t
 			:size 2 :maxlength 4)))))))
