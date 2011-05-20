@@ -103,6 +103,8 @@
 
 (defwidget answer-widget widget ())
 
+(defwidget answer-widget2 widget ())
+
 (defmethod render-content ((widget caller-widget) (view t) &key)
   (html-to-string
     (str (answers widget))
@@ -116,5 +118,16 @@
 
 (defmethod render-content ((widget answer-widget) (view t) &key)
   (html-to-string
-    (create-link #'(lambda () (answer widget "answer "))
+    (create-link #'(lambda () (call-widget (create-answer-widget2)
+					   widget
+					   #'(lambda (answer)
+					       (answer widget
+						       (concatenate 'string
+								    "Answer "
+								    answer)))))
 		 "Answer")))
+
+(defmethod render-content ((widget answer-widget2) (view t) &key)
+  (html-to-string
+    (create-link #'(lambda () (answer widget "answer2 "))
+		 "Answer 2")))

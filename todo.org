@@ -28,3 +28,5 @@
 * 5/31/2011
   - test on-true and on-false for checkbox
   - fix html-to-string (it's trying to be a code walker, but it fails miserably for things like (let ((<name-of-who-fun>))...))
+  - fix :initform args for defwidget
+  - create form file upload utility
