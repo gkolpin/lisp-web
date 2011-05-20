@@ -146,11 +146,8 @@
 				(cons (slot-def-name slot-def)
 				      (limit (member :initform slot-def) 2))))
 			slot-defs)))
-     (defun ,(cat-symbols 'create '- name) (&key ,@(mapcar #'slot-def-name slot-defs))
-       (make-instance ',name ,@(apply #'append
-				      (mapcar #'(lambda (slot-name)
-						  `(,(to-keyword slot-name) ,slot-name))
-					      (mapcar #'slot-def-name slot-defs)))))
+     (defun ,(cat-symbols 'create '- name) (&rest args)
+       (apply #'make-instance (cons ',name args)))
      (defmethod child-widgets ((widget ,name))
        (list 
 	,@(remove-nils
