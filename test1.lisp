@@ -2,7 +2,8 @@
 
 (defwidget foo widget (a 
 		       (b :widget)
-		       (c :widget)))
+		       (c :widget)
+		       (call-test :widget)))
 
 (defwidget bar widget (a))
 
@@ -10,7 +11,8 @@
 
 (defun init-test1 ()
   (setf *init-fun* #'(lambda () (create-foo :a 1 :b (create-bar :a 3)
-					    :c (create-test-form))))
+					    :c (create-test-form)
+					    :call-test (create-caller-widget))))
   (let ((*debug* t))
     (restart-gweb)))
 
@@ -20,7 +22,9 @@
 	   (:body
 	    (str (render (b widget)))
 	    (:br)
-	    (str (render (c widget)))))))
+	    (str (render (c widget)))
+	    (:br)
+	    (str (render (call-test widget)))))))
 
 (defmethod render-content ((widget bar) (view t) &key)
   (with-html-output-to-string (s)
@@ -94,3 +98,23 @@
       (submit-input "clear"
 		    #'(lambda ()
 			(setf (messages widget) ""))))))
+
+(defwidget caller-widget widget ((answers :initform "answers: ")))
+
+(defwidget answer-widget widget ())
+
+(defmethod render-content ((widget caller-widget) (view t) &key)
+  (html-to-string
+    (str (answers widget))
+    (:br)
+    (create-link #'(lambda () (call-widget (create-answer-widget)
+					   widget
+					   #'(lambda (answer)
+					       (set-conc (answers widget)
+							 answer))))
+		 "Call answer widget")))
+
+(defmethod render-content ((widget answer-widget) (view t) &key)
+  (html-to-string
+    (create-link #'(lambda () (answer widget "answer "))
+		 "Answer")))

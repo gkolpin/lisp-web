@@ -23,6 +23,8 @@
   -redo the create-form macro so that links can be placed in forms without their callbacks being placed in the forms *callback-hash*
   -redo radio-group macro so that it resembles the create-form macro
 * 5/29/2011
-  - test on-true and on-false for checkbox
   - finish 'with' param for date-input
   - finish 'options' param for date-input
+* 5/31/2011
+  - test on-true and on-false for checkbox
+  - fix html-to-string (it's trying to be a code walker, but it fails miserably for things like (let ((<name-of-who-fun>))...))

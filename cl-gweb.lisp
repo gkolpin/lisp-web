@@ -97,14 +97,18 @@
   (render (widget-tree *cur-user-session*)))
 
 (defun render (widget)
-  (render-content widget t))
+  (if (render-stack widget)
+      (render-content (first (render-stack widget)) t)
+      (render-content widget t)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;WIDGETS
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defclass widget ()
-  ())
+  ((render-stack :initform '() :accessor render-stack)
+   (callback-stack :initform '() :accessor callback-stack)
+   (rendering-for :initform nil :accessor rendering-for)))
 
 (defgeneric before-render-content (widget &key))
 
@@ -241,6 +245,10 @@
     (with-link-callback (callback-key callback)
       (with-html-output-to-string (s)
 	(:a :href (gen-new-frame-url :frame-key callback-key) (str link-text))))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; html form utilities
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun form-callback-fun (callback-hash callback-required-hash
 			  inputs submit-inputs)
@@ -416,3 +424,24 @@
 		 (str month-html)
 		 (str day-html)
 		 (str year-html)))))))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; html control flow
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defun call-widget (new-widget cur-widget callback)
+  (if (rendering-for cur-widget)
+      (progn
+	(push new-widget (render-stack (rendering-for cur-widget)))
+	(push callback (callback-stack (rendering-for cur-widget)))
+	(setf (rendering-for new-widget) (rendering-for cur-widget)))
+      (progn
+	(push new-widget (render-stack cur-widget))
+	(push callback (callback-stack cur-widget))
+	(setf (rendering-for new-widget) cur-widget))))
+
+(defun answer (cur-widget val)
+  (when (rendering-for cur-widget)
+    (let ((callback (pop (callback-stack (rendering-for cur-widget)))))
+      (pop (render-stack (rendering-for cur-widget)))
+      (funcall callback val))))
