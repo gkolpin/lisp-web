@@ -14,6 +14,9 @@
 (defvar *form-callback-hash* nil)
 (defvar *radio-group-name*)
 (defvar *radio-group-callback-map*)
+(defvar *rendering-widget* nil)
+
+(defstruct callback (fn) (cur-widget))
 
 (defun start-gweb ()
   (when *debug*
@@ -67,6 +70,10 @@
     (unless frame-key (redirect (gen-new-frame-url)))
     (evaluate-request frame-key inputs submit-callbacks)))
 
+(defun add-callback-to-session (action-id callback)
+  (setf (gethash action-id *callback-hash*)
+	(make-callback :fn callback :cur-widget *rendering-widget*)))
+
 (defun remove-callbacks ()
   (clrhash *callback-hash*))
 
@@ -79,7 +86,8 @@
   
 (defun perform-action (action-id &rest args)
   (awhen (gethash action-id *callback-hash*)
-    (apply it args)))
+    (let ((*rendering-widget* (callback-cur-widget it)))
+      (apply (callback-fn it) args))))
 
 (defun pre-render-widgets ()
   )
@@ -98,8 +106,10 @@
 
 (defun render (widget)
   (if (render-stack widget)
-      (render-content (first (render-stack widget)) t)
-      (render-content widget t)))
+      (let ((*rendering-widget* (first (render-stack widget))))
+	(render-content *rendering-widget* t))
+      (let ((*rendering-widget* widget))
+	(render-content *rendering-widget* t))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;WIDGETS
@@ -190,8 +200,7 @@
 
 (defmacro with-link-callback ((callback-key-arg callback-fn) &body body)
   `(let ((,callback-key-arg (gen-callback-key)))
-     (setf (gethash ,callback-key-arg *callback-hash*)
-	   ,callback-fn)
+     (add-callback-to-session ,callback-key-arg ,callback-fn)
      ,@body))
 
 (defmacro with-form-callback ((callback-key-arg callback-fn &optional (callback-required nil callback-required-p))
@@ -280,8 +289,7 @@
 		 #'(lambda (inputs submit-callbacks)
 		     (form-callback-fun callback-hash callback-required-hash
 					inputs submit-callbacks)))))
-       (setf (gethash ,form-callback-key-arg *callback-hash*)
-	     ,form-callback-arg)
+       (add-callback-to-session ,form-callback-key-arg ,form-callback-arg)
        ,html-arg)))
 
 (def-who-macro text-input (value &rest create-basic-input-args)
@@ -426,7 +434,7 @@
 ;; html control flow
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defun call-widget (new-widget cur-widget callback)
+(defun call-widget-fn (new-widget cur-widget callback)
   (if (rendering-for cur-widget)
       (progn
 	(push new-widget (render-stack (rendering-for cur-widget)))
@@ -437,8 +445,19 @@
 	(push callback (callback-stack cur-widget))
 	(setf (rendering-for new-widget) cur-widget))))
 
-(defun answer (cur-widget val)
+(defun answer-widget-fn (cur-widget val)
   (when (rendering-for cur-widget)
     (let ((callback (pop (callback-stack (rendering-for cur-widget)))))
       (pop (render-stack (rendering-for cur-widget)))
       (funcall callback val))))
+
+(defmacro call-widget (val-widget-binding &body body)
+  (with-gensyms (rendering-widget-var)
+    `(call-widget-fn ,(second val-widget-binding) *rendering-widget* 
+		     (let ((,rendering-widget-var *rendering-widget*))
+		       #'(lambda (,(first val-widget-binding))
+			   (let ((*rendering-widget* ,rendering-widget-var))
+			     ,@body))))))
+
+(defmacro answer-widget (val)
+  `(answer-widget-fn *rendering-widget* ,val))
