@@ -27,7 +27,8 @@
 	   #:checkbox
 	   #:date-input
 	   #:call-widget
-	   #:answer))
+	   #:answer
+	   #:on-answer))
 
 (defpackage :test1
   (:use :common-lisp :cl-gweb :cl-who :local-time))

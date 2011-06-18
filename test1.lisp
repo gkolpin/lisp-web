@@ -10,9 +10,13 @@
 (defwidget test-form widget ((messages :initform "")))
 
 (defun init-test1 ()
-  (setf *init-fun* #'(lambda () (create-foo :a 1 :b (create-bar :a 3)
-					    :c (create-test-form)
-					    :call-test (create-caller-widget))))
+  (setf *init-fun* #'(lambda ()
+		       (let* ((bar-widget (create-bar :a 3))
+			      (foo-widget (create-foo :a 1 :b bar-widget
+						      :c (create-test-form)
+						      :call-test (create-caller-widget))))
+			 (on-answer bar-widget #'(lambda (val) (setf (a foo-widget) val)))
+			 foo-widget)))
   (let ((*debug* t))
     (restart-gweb)))
 
@@ -20,6 +24,8 @@
   (with-html-output-to-string (s)
     (:html (:head)
 	   (:body
+	    (str (a widget))
+	    (:br)
 	    (str (render (b widget)))
 	    (:br)
 	    (str (render (c widget)))
@@ -30,7 +36,9 @@
   (with-html-output-to-string (s)
     (str (a widget))
     (:br)
-    (str (create-link (link-fn incf (a widget))
+    (str (create-link #'(lambda () 
+			  (incf (a widget))
+			  (answer widget (a widget)))
 		      "increment"))))
 
 (defmethod render-content ((widget test-form) (view t) &key)

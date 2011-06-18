@@ -28,6 +28,7 @@
 							   'hunchentoot:one-thread-per-connection-taskmaster))))))
 
 (defun stop-gweb ()
+  (clrhash *user-sessions*)
   (when *acceptor*
     (hunchentoot:stop *acceptor*)
     (setf *acceptor* nil)))
@@ -97,6 +98,7 @@
   (render (widget-tree *cur-user-session*)))
 
 (defun render (widget)
+  (assert (typep widget 'widget))
   (if (render-stack widget)
       (render-content (first (render-stack widget)) t)
       (render-content widget t)))
@@ -438,7 +440,13 @@
 	(setf (rendering-for new-widget) cur-widget))))
 
 (defun answer (cur-widget val)
-  (when (rendering-for cur-widget)
+  (if (rendering-for cur-widget)
     (let ((callback (pop (callback-stack (rendering-for cur-widget)))))
       (pop (render-stack (rendering-for cur-widget)))
+      (funcall callback val))
+    (dolist (callback (callback-stack cur-widget))
       (funcall callback val))))
+
+(defun on-answer (widget callback)
+  (assert (not (rendering-for widget)))
+  (push callback (callback-stack widget)))
