@@ -459,12 +459,21 @@
 (defclass announcement () ())
 
 (defun create-announcer ()
-  (make-hash-table))
+  (let ((listeners (make-hash-table)))
+    (labels ((register-listener (type action)
+	       (setf (gethash type listeners) action))
+	     (announce (announcement)
+	       (assert (typep announcement 'announcement))
+	       (funcall (gethash (type-of announcement) listeners)
+			announcement)))
+      #'(lambda (action &rest args)
+	  (case action
+	    (:register-listener (apply #'register-listener args))
+	    (:announce (apply #'announce args)))))))
 
 (defun register-listener (type action)
-  (setf (gethash type (announcer *cur-user-session*)) action))
+  (funcall (announcer *cur-user-session*) :register-listener type action))
 
 (defun announce (announcement)
   (assert (typep announcement 'announcement))
-  (funcall (gethash (type-of announcement) (announcer *cur-user-session*))
-	   announcement))
+  (funcall (announcer *cur-user-session*) :announce announcement))
