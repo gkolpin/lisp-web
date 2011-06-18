@@ -42,14 +42,15 @@
    (widget-tree :initarg :widget-tree :accessor widget-tree)
    (callbacks :initarg :callbacks :accessor callbacks)
    (frame-key :initform 1 :accessor frame-key)
-   (callback-hash :initarg :callback-hash :accessor callback-hash)))
+   (callback-hash :initarg :callback-hash :accessor callback-hash)
+   (announcer :initform (create-announcer) :accessor announcer)))
 
 (defun initialize-user-session (hunchentoot-session)
-  (let ((widget-tree (funcall *init-fun*)))
-    (make-instance 'user-session 
-		   :hunchentoot-session hunchentoot-session
-		   :widget-tree widget-tree
-		   :callback-hash (make-hash-table :test 'equal))))
+  (let ((*cur-user-session* (make-instance 'user-session 
+					   :hunchentoot-session hunchentoot-session
+					   :callback-hash (make-hash-table :test 'equal))))
+    (setf (widget-tree *cur-user-session*) (funcall *init-fun*))
+    *cur-user-session*))
 
 (defun store-user-session (user-session)
   (setf (gethash (hunchentoot-session user-session) *user-sessions*) user-session))
@@ -450,3 +451,20 @@
 (defun on-answer (widget callback)
   (assert (not (rendering-for widget)))
   (push callback (callback-stack widget)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; announcers
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defclass announcement () ())
+
+(defun create-announcer ()
+  (make-hash-table))
+
+(defun register-listener (type action)
+  (setf (gethash type (announcer *cur-user-session*)) action))
+
+(defun announce (announcement)
+  (assert (typep announcement 'announcement))
+  (funcall (gethash (type-of announcement) (announcer *cur-user-session*))
+	   announcement))

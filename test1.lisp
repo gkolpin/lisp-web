@@ -1,6 +1,7 @@
 (in-package :test1)
 
 (defwidget foo widget (a 
+		       status
 		       (b :widget)
 		       (c :widget)
 		       (call-test :widget)))
@@ -9,13 +10,21 @@
 
 (defwidget test-form widget ((messages :initform "")))
 
+(defclass status-announcement (announcement)
+  ((status :initarg :status :accessor status)))
+
 (defun init-test1 ()
   (setf *init-fun* #'(lambda ()
 		       (let* ((bar-widget (create-bar :a 3))
 			      (foo-widget (create-foo :a 1 :b bar-widget
+						      :status "no status"
 						      :c (create-test-form)
 						      :call-test (create-caller-widget))))
 			 (on-answer bar-widget #'(lambda (val) (setf (a foo-widget) val)))
+			 (register-listener 'status-announcement
+					    #'(lambda (status)
+						(setf (status foo-widget)
+						      (status status))))
 			 foo-widget)))
   (let ((*debug* t))
     (restart-gweb)))
@@ -24,6 +33,8 @@
   (with-html-output-to-string (s)
     (:html (:head)
 	   (:body
+	    (str (status widget))
+	    (:br)
 	    (str (a widget))
 	    (:br)
 	    (str (render (b widget)))
@@ -38,8 +49,15 @@
     (:br)
     (str (create-link #'(lambda () 
 			  (incf (a widget))
-			  (answer widget (a widget)))
-		      "increment"))))
+			  (answer widget (a widget))
+			  (announce (make-instance 'status-announcement
+						   :status "incrementing!")))
+		      "increment"))
+    (:br)
+    (str (create-link #'(lambda ()
+			  (announce (make-instance 'status-announcement
+						   :status "no status")))
+		      "reset status"))))
 
 (defmethod render-content ((widget test-form) (view t) &key)
   (let ((input-val nil))
