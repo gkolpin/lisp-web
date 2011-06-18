@@ -26,11 +26,8 @@
 	   #:html-to-string
 	   #:checkbox
 	   #:date-input
-	   #:call-widget-fn
-	   #:answer-widget-fn
 	   #:call-widget
-	   #:answer-widget
-	   #:*rendering-widget*))
+	   #:answer))
 
 (defpackage :test1
   (:use :common-lisp :cl-gweb :cl-who :local-time))
