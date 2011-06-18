@@ -98,11 +98,7 @@
 (defun render-session-widgets ()
   (render (widget-tree *cur-user-session*)))
 
-(defun render (widget)
-  (assert (typep widget 'widget))
-  (if (render-stack widget)
-      (render-content (first (render-stack widget)) t)
-      (render-content widget t)))
+(defgeneric render (component))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;WIDGETS
@@ -112,6 +108,11 @@
   ((render-stack :initform '() :accessor render-stack)
    (callback-stack :initform '() :accessor callback-stack)
    (rendering-for :initform nil :accessor rendering-for)))
+
+(defmethod render ((widget widget))
+  (if (render-stack widget)
+      (render-content (first (render-stack widget)) t)
+      (render-content widget t)))
 
 (defgeneric before-render-content (widget &key))
 
@@ -477,3 +478,20 @@
 (defun announce (announcement)
   (assert (typep announcement 'announcement))
   (funcall (announcer *cur-user-session*) :announce announcement))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; tasks
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defclass task (widget) ())
+
+(defmethod child-widgets ((task task))
+  (declare (ignore task))
+  '())
+
+(defmethod render ((task task))
+  (unless (render-stack task) (task-go task))
+  (assert (render-stack task))
+  (render-content (first (render-stack task)) t))
+
+(defgeneric task-go (task))

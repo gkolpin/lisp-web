@@ -31,7 +31,9 @@
 	   #:on-answer
 	   #:announcement
 	   #:register-listener
-	   #:announce))
+	   #:announce
+	   #:task
+	   #:task-go))
 
 (defpackage :test1
   (:use :common-lisp :cl-gweb :cl-who :local-time))

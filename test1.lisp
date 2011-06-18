@@ -4,7 +4,8 @@
 		       status
 		       (b :widget)
 		       (c :widget)
-		       (call-test :widget)))
+		       (call-test :widget)
+		       (task-test :widget)))
 
 (defwidget bar widget (a))
 
@@ -13,13 +14,16 @@
 (defclass status-announcement (announcement)
   ((status :initarg :status :accessor status)))
 
+(defclass task-test (task) ())
+
 (defun init-test1 ()
   (setf *init-fun* #'(lambda ()
 		       (let* ((bar-widget (create-bar :a 3))
 			      (foo-widget (create-foo :a 1 :b bar-widget
 						      :status "no status"
 						      :c (create-test-form)
-						      :call-test (create-caller-widget))))
+						      :call-test (create-caller-widget)
+						      :task-test (make-instance 'task-test))))
 			 (on-answer bar-widget #'(lambda (val) (setf (a foo-widget) val)))
 			 (register-listener 'status-announcement
 					    #'(lambda (status)
@@ -41,7 +45,9 @@
 	    (:br)
 	    (str (render (c widget)))
 	    (:br)
-	    (str (render (call-test widget)))))))
+	    (str (render (call-test widget)))
+	    (:br)
+	    (str (render (task-test widget)))))))
 
 (defmethod render-content ((widget bar) (view t) &key)
   (with-html-output-to-string (s)
@@ -157,3 +163,12 @@
   (html-to-string
     (create-link #'(lambda () (answer widget "answer2 "))
 		 "Answer 2")))
+
+(defmethod task-go ((task task-test))
+  (labels ((task-loop ()
+	     (call-widget (create-answer-widget)
+			  task
+			  #'(lambda (answer)
+			      (declare (ignore answer))
+			      (task-loop)))))
+    (task-loop)))
