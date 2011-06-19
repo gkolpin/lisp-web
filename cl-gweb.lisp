@@ -117,6 +117,8 @@
       (render-content (first (render-stack widget)) t)
       (render-content widget t)))
 
+(defgeneric take-snapshot (widget))
+
 (defgeneric before-render-content (widget &key))
 
 (defgeneric render-content (widget view &key))
@@ -133,7 +135,33 @@
       (find :widget slot-def)
       nil))
 
+(defun is-historied (slot-def)
+  (if (listp slot-def)
+      (find :historied slot-def)
+      nil))
+
 (defgeneric child-widgets (widget))
+
+(defun def-widget-readers (slot-defs)
+  (mapcar #'(lambda (slot-def)
+	      `(defun ,(slot-def-name slot-def) (obj)
+		   ,(if (is-historied slot-def)
+			`(get-slot-history-value obj ',(slot-def-name slot-def))
+			`(slot-value obj ',(slot-def-name slot-def)))))
+	  slot-defs))
+
+(defmacro def-widget-with-history (name inherits-from slot-defs)
+  `(defwidget ,name ,inherits-from ,(mapcar #'(lambda (slot-def)
+						(append slot-def '(:historied)))
+					    slot-defs)))
+
+(defun def-widget-snapshotter (slot-defs)
+  `(defmethod take-snapshot ((widget widget))
+     ,@(mapcar #'(lambda (slot-def)
+		   (when (is-historied slot-def)
+		     `(set-slot-history-value widget
+					      (,(slot-def-name slot-def) widget))))
+	       slot-defs)))
 
 (defmacro defwidget (name inherits-from slot-defs)
   ;; slot-defs: (<name> :widget :initform <initform>)
@@ -145,7 +173,7 @@
 		      `(,slot-name
 			:initarg ,(intern (symbol-name slot-name)
 					  :keyword)
-			:accessor ,slot-name
+			:writer ,slot-name
 			,@(when initform-p (list :initform initform)))))
 		(mapcar #'(lambda (slot-def)
 			    (if (atom slot-def)
@@ -155,6 +183,8 @@
 			slot-defs)))
      (defun ,(cat-symbols 'create '- name) (&rest args)
        (apply #'make-instance (cons ',name args)))
+     ,@(def-widget-readers slot-defs)
+     ,(def-widget-snapshotter slot-defs)
      (defmethod child-widgets ((widget ,name))
        (list 
 	,@(remove-nils
