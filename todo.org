@@ -26,8 +26,10 @@
   - finish 'with' param for date-input
   - finish 'options' param for date-input
 * 5/31/2011
-  - test on-true and on-false for checkbox
-  - fix html-to-string (it's trying to be a code walker, but it fails miserably for things like (let ((<name-of-who-fun>))...))
   - fix :initform args for defwidget
+* 6/23/2011
   - create form file upload utility
   - determine what 'calling' a widget means for things like the children method - when is the children method used and does the callee's children method get called instead of the caller's?
+  - look at being able to 'call' functions and place them in render-stacks
+  - test on-true and on-false for checkbox
+  - fix html-to-string (it's trying to be a code walker, but it fails miserably for things like (let ((<name-of-who-fun>))...))

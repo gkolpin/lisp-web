@@ -14,6 +14,7 @@
 (defvar *form-callback-hash* nil)
 (defvar *radio-group-name*)
 (defvar *radio-group-callback-map*)
+(defvar *render-stream* nil)
 
 (defun start-gweb ()
   (when *debug*
@@ -77,7 +78,9 @@
   (perform-action action-id inputs submit-callbacks)
   (remove-callbacks)
   (pre-render-widgets)
-  (render-session-widgets))
+  (let ((*render-stream* (make-string-output-stream)))
+    (render-session-widgets)
+    (get-output-stream-string *render-stream*)))
   
 (defun perform-action (action-id &rest args)
   (awhen (gethash action-id *callback-hash*)
@@ -212,39 +215,16 @@
 	    get-regular-callback)
        ,@body)))
 
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  (defvar *who-fun-names* '())
-  (defun register-who-fun (name)
-    (pushnew name *who-fun-names*)))
-
-(defmacro def-who-fun (name args &body body)
-  (register-who-fun name)
-  `(defun ,name ,args
+(defmacro to-html (&body body)
+  `(with-html-output (*render-stream*)
      ,@body))
 
-(defmacro def-who-macro (name lambda-list &rest body)
-  (register-who-fun name)
-  `(defmacro ,name ,lambda-list
-     ,@body))
-
-(defmacro html-to-string (&body body)
-  (labels ((replace-who-functions (forms)
-	     (mapcar #'(lambda (obj)
-			 (cond ((and (consp obj) (find (first obj) *who-fun-names*))
-				`(str ,obj))
-			       ((consp obj) (replace-who-functions obj))
-			       (t obj)))
-		     forms)))
-    (with-gensyms (string-arg)
-      `(with-html-output-to-string (,string-arg)
-	 ,@(replace-who-functions body)))))
-
-(def-who-fun create-link (callback link-text)
+(defun create-link (callback link-text)
   (let ((callback #'(lambda (inputs submit-inputs)
 		      (declare (ignore inputs submit-inputs))
 		      (funcall callback))))
     (with-link-callback (callback-key callback)
-      (with-html-output-to-string (s)
+      (to-html
 	(:a :href (gen-new-frame-url :frame-key callback-key) (str link-text))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -268,16 +248,15 @@
    	   submit-inputs))
 
 (defmacro create-form (&body body)
-  (with-gensyms (html-arg frame-url-arg form-callback-key-arg form-callback-arg)
+  (with-gensyms (frame-url-arg form-callback-key-arg form-callback-arg)
     `(let ((,form-callback-arg nil)
-	   (,form-callback-key-arg (gen-callback-key))
-	   (,html-arg nil))
+	   (,form-callback-key-arg (gen-callback-key)))
        (let* ((*form-callback-hash* (make-hash-table :test 'equal))
 	      (*callback-required-hash* (make-hash-table :test 'equal))
 	      (,frame-url-arg (gen-new-frame-url :frame-key ,form-callback-key-arg)))
-	 (setf ,html-arg (html-to-string
-			  (:form :method "POST" :action ,frame-url-arg
-				 ,@body)))
+	 (to-html
+	   (:form :method "POST" :action ,frame-url-arg
+		  ,@body))
 	 (let ((callback-hash *form-callback-hash*)
 	       (callback-required-hash *callback-required-hash*))
 	   (setf ,form-callback-arg
@@ -285,16 +264,15 @@
 		     (form-callback-fun callback-hash callback-required-hash
 					inputs submit-callbacks)))))
        (setf (gethash ,form-callback-key-arg *callback-hash*)
-	     ,form-callback-arg)
-       ,html-arg)))
+	     ,form-callback-arg))))
 
-(def-who-macro text-input (value &rest create-basic-input-args)
+(defmacro text-input (value &rest create-basic-input-args)
   `(create-basic-input ,value :text ,@create-basic-input-args))
 
-(def-who-macro hidden-input (value &rest create-basic-input-args)
+(defmacro hidden-input (value &rest create-basic-input-args)
   `(create-basic-input ,value :hidden ,@create-basic-input-args))
 
-(def-who-fun checkbox (&key checked callback on of on-true on-false)
+(defun checkbox (&key checked callback on of on-true on-false)
   (let ((on-true-false-callback
 	 #'(lambda (val)
 	     (if val
@@ -306,7 +284,7 @@
 	(create-basic-input nil :checkbox	:checked checked 
 			    :callback callback :on on :of of :callback-required t))))
 
-(def-who-fun submit-input (value callback)
+(defun submit-input (value callback)
   (labels ((submit-callback (val)
 	     (declare (ignore val))
 	     (funcall callback)))
@@ -315,13 +293,13 @@
 						      callback-key)
 			  :callback #'submit-callback))))
 
-(def-who-fun create-basic-input (value type &key name callback on of checked
+(defun create-basic-input (value type &key name callback on of checked
 				       (callback-required nil) maxlength size)
   (let ((input-callback #'(lambda (val)
 			     (cond (callback (funcall callback val))
 				   ((and on of) (setf (slot-value of on) val))))))
     (with-form-callback (callback-key input-callback callback-required)
-      (html-to-string
+      (to-html
 	(:input :type (symbol-name type)
 		:name (if name 
 			  name
@@ -332,7 +310,7 @@
 		:maxlength (when maxlength maxlength)
 		:size (when size size))))))
 
-(def-who-fun select-input (&key size values show selected callback on of)
+(defun select-input (&key size values show selected callback on of)
   (let ((value-input-map (let ((list-idx 0))
 			   (mapcar #'(lambda (value)
 				       (list (pincf list-idx)
@@ -344,7 +322,7 @@
 		     (funcall callback (second (assoc int-value value-input-map)))
 		     (setf (slot-value of on) value)))))
       (with-form-callback (callback-key #'select-input-callback)
-	(html-to-string
+	(to-html
 	  (:select :size (when size (write-to-string size))
 		   :name (format nil "~A{~A}" "inputs" callback-key)
 		   (dolist (value value-input-map)
@@ -354,19 +332,17 @@
 					       "selected")
 				   (esc (funcall show (second value))))))))))))
 
-(def-who-macro with-radio-group (&body body)
-  (with-gensyms (html-arg)
-    `(let ((*radio-group-name* (gen-callback-key))
-	   (*radio-group-callback-map* (make-hash-table :test 'equal)))
-       (let ((,html-arg (html-to-string ,@body)))
-	 (let ((radio-callback-map *radio-group-callback-map*)
-	       (radio-group-name *radio-group-name*))
-	   (setf (gethash radio-group-name *form-callback-hash*)
-		 #'(lambda (val)
-		     (funcall (gethash val radio-callback-map)))))
-	 ,html-arg))))
+(defmacro with-radio-group (&body body)
+  `(let ((*radio-group-name* (gen-callback-key))
+	 (*radio-group-callback-map* (make-hash-table :test 'equal)))
+     (to-html ,@body)
+     (let ((radio-callback-map *radio-group-callback-map*)
+	   (radio-group-name *radio-group-name*))
+       (setf (gethash radio-group-name *form-callback-hash*)
+	     #'(lambda (val)
+		 (funcall (gethash val radio-callback-map)))))))
 
-(def-who-fun radio-button (&key selected callback)
+(defun radio-button (&key selected callback)
   (let ((callback-key (gen-callback-key)))
     (setf (gethash callback-key *radio-group-callback-map*) callback)
     (create-basic-input callback-key :radio
@@ -388,7 +364,7 @@
 		     pre-requisite-callbacks)
 	 ,@body))))
 
-(def-who-fun date-input (&key callback with options)
+(defun date-input (&key callback with options)
   (let ((months '(january february march april may june july august september october
 		  november december)))
     (bind-nil (month day year)
@@ -401,30 +377,31 @@
 	  ((month-select-callback (setf-fn month))
 	   (day-callback (setf-fn day #'parse-integer))
 	   (year-callback (setf-fn year #'parse-integer)))
-	(let* ((now (today))
-	       (month-html
-		(select-input :values months
-			      :show #'(lambda (month) (format nil "~:(~a~)" month))
-			      :callback month-select-callback
-			      :selected (nth (1- (timestamp-month (if with with now))) months)))
-	       (day-html
-		(text-input (timestamp-day (if with with now))
-			    :callback day-callback :callback-required t
-			    :size 2 :maxlength 2))
-	       (year-html (text-input (timestamp-year (if with with now))
-				      :callback year-callback :callback-required t
-				      :size 2 :maxlength 4)))
-	  (html-to-string
-	    (if options
-		(dolist (option options)
-		  (htm (str (case option
-			      (:day day-html)
-			      (:year year-html)
-			      (:month month-html)))))
-		(htm
-		 (str month-html)
-		 (str day-html)
-		 (str year-html)))))))))
+	(let* ((now (today)))
+	  (labels
+	      ((month-html ()
+		   (select-input :values months
+				 :show #'(lambda (month) (format nil "~:(~a~)" month))
+				 :callback month-select-callback
+				 :selected (nth (1- (timestamp-month (if with with now))) months)))
+	       (day-html ()
+		 (text-input (timestamp-day (if with with now))
+			     :callback day-callback :callback-required t
+			     :size 2 :maxlength 2))
+	       (year-html () (text-input (timestamp-year (if with with now))
+					 :callback year-callback :callback-required t
+					 :size 2 :maxlength 4)))
+	    (to-html
+	     (if options
+		 (dolist (option options)
+		   (case option
+		     (:day (day-html))
+		     (:year (year-html))
+		     (:month (month-html))))
+		 (progn
+		   (month-html)
+		   (day-html)
+		   (year-html))))))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; html control flow

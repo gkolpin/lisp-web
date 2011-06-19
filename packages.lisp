@@ -23,7 +23,6 @@
 	   #:with-radio-group
 	   #:radio-button
 	   #:set-conc
-	   #:html-to-string
 	   #:checkbox
 	   #:date-input
 	   #:call-widget
@@ -33,7 +32,9 @@
 	   #:register-listener
 	   #:announce
 	   #:task
-	   #:task-go))
+	   #:task-go
+	   #:*render-stream*
+	   #:to-html))
 
 (defpackage :test1
   (:use :common-lisp :cl-gweb :cl-who :local-time))
