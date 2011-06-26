@@ -1,15 +1,15 @@
 (in-package :test1)
 
-(defwidget foo widget (a 
-		       status
-		       (b :widget)
-		       (c :widget)
-		       (call-test :widget)
-		       (task-test :widget)))
+(defwidget foo (widget) (a 
+			 status
+			 (b :widget)
+			 (c :widget)
+			 (call-test :widget)
+			 (task-test :widget)))
 
-(defwidget bar widget (a))
+(def-widget-with-history bar (widget) (a))
 
-(defwidget test-form widget ((messages :initform '())))
+(defwidget test-form (widget) ((messages :initform '())))
 
 (defclass status-announcement (announcement)
   ((status :initarg :status :accessor status)))
@@ -133,11 +133,11 @@
 		    #'(lambda ()
 			(setf (messages widget) '()))))))
 
-(defwidget caller-widget widget ((answers :initform "answers: ")))
+(defwidget caller-widget (widget) ((answers :initform "answers: ")))
 
-(defwidget answer-widget widget ())
+(defwidget answer-widget (widget) ())
 
-(defwidget answer-widget2 widget ())
+(defwidget answer-widget2 (widget) ())
 
 (defmethod render-content ((widget caller-widget) (view t) &key)
   (to-html

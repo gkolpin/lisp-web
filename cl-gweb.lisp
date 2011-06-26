@@ -15,6 +15,7 @@
 (defvar *radio-group-name*)
 (defvar *radio-group-callback-map*)
 (defvar *render-stream* nil)
+(defvar *frame-key*)
 
 (defun start-gweb ()
   (when *debug*
@@ -44,7 +45,8 @@
    (callbacks :initarg :callbacks :accessor callbacks)
    (frame-key :initform 1 :accessor frame-key)
    (callback-hash :initarg :callback-hash :accessor callback-hash)
-   (announcer :initform (create-announcer) :accessor announcer)))
+   (announcer :initform (create-announcer) :accessor announcer)
+   (widget-snapshots :initform (make-hash-table) :accessor widget-snapshots)))
 
 (defun initialize-user-session (hunchentoot-session)
   (let ((*cur-user-session* (make-instance 'user-session 
@@ -68,7 +70,8 @@
   (let* ((*cur-user-session* (retrieve-user-session *session*))
 	 (*callback-hash* (callback-hash *cur-user-session*)))
     (unless frame-key (redirect (gen-new-frame-url)))
-    (evaluate-request frame-key inputs submit-callbacks)))
+    (let ((*frame-key* frame-key))
+      (evaluate-request frame-key inputs submit-callbacks))))
 
 (defun remove-callbacks ()
   (clrhash *callback-hash*))
@@ -80,6 +83,7 @@
   (pre-render-widgets)
   (let ((*render-stream* (make-string-output-stream)))
     (render-session-widgets)
+    (store-widget-snapshots)
     (get-output-stream-string *render-stream*)))
   
 (defun perform-action (action-id &rest args)
@@ -101,79 +105,101 @@
 (defun render-session-widgets ()
   (render (widget-tree *cur-user-session*)))
 
+(defun store-widget-snapshots ()
+  (dolist (widget (widgets-in-tree (widget-tree *cur-user-session*)))
+    (take-snapshot widget)))
+
 (defgeneric render (component))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;WIDGETS
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defclass widget ()
-  ((render-stack :initform '() :accessor render-stack)
-   (callback-stack :initform '() :accessor callback-stack)
-   (rendering-for :initform nil :accessor rendering-for)))
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (defun slot-def-name (slot-def)
+    (if (listp slot-def)
+	(first slot-def)
+	slot-def))
 
-(defmethod render ((widget widget))
-  (if (render-stack widget)
-      (render-content (first (render-stack widget)) t)
-      (render-content widget t)))
-
-(defgeneric take-snapshot (widget))
-
-(defgeneric before-render-content (widget &key))
-
-(defgeneric render-content (widget view &key))
-
-(defmethod render-content ((widget t) (view t) &key) "DEFAULT RENDERER")
-
-(defun slot-def-name (slot-def)
-  (if (listp slot-def)
-      (first slot-def)
-      slot-def))
-
-(defun is-widget (slot-def)
-  (if (listp slot-def)
-      (find :widget slot-def)
-      nil))
-
-(defun is-historied (slot-def)
-  (if (listp slot-def)
-      (find :historied slot-def)
-      nil))
+  (defun is-widget (slot-def)
+    (if (listp slot-def)
+	(find :widget slot-def)
+	nil))
+  
+  (defun is-historied (slot-def)
+    (if (listp slot-def)
+	(find :historied slot-def)
+	nil))
+  
+  (defun set-historied (slot-def)
+    (if (atom slot-def)
+	(list slot-def :historied)
+	(append slot-def (list :historied)))))
 
 (defgeneric child-widgets (widget))
 
-(defun def-widget-readers (slot-defs)
-  (mapcar #'(lambda (slot-def)
-	      `(defun ,(slot-def-name slot-def) (obj)
+(defun get-slot-history-value (obj slot-name)
+  (gethash slot-name (gethash obj (gethash *frame-key* *cur-user-session*))))
+
+(defun get-frame-history-hash ()
+  (aif (gethash *frame-key* (widget-snapshots *cur-user-session*))
+       it
+       (let ((hash (make-hash-table)))
+	 (setf (gethash *frame-key* (widget-snapshots *cur-user-session*)) hash)
+	 hash)))
+
+(defun get-obj-slot-hash (obj frame-hash)
+  (aif (gethash obj frame-hash)
+       it
+       (let ((hash (make-hash-table)))
+	 (setf (gethash obj frame-hash) hash)
+	 hash)))
+
+(defun set-slot-history-value (obj slot-name val)
+  (setf (gethash slot-name (get-obj-slot-hash obj (get-frame-history-hash)))
+	val))
+
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (defun def-widget-readers (slot-defs)
+    (mapcar #'(lambda (slot-def)
+		`(defun ,(slot-def-name slot-def) (obj)
 		   ,(if (is-historied slot-def)
 			`(get-slot-history-value obj ',(slot-def-name slot-def))
 			`(slot-value obj ',(slot-def-name slot-def)))))
-	  slot-defs))
-
+	    slot-defs))
+  (defun def-widget-setfers (slot-defs)
+    (mapcar #'(lambda (slot-def)
+		`(defun (setf ,(slot-def-name slot-def)) (value obj)
+		   (setf (slot-value obj ',(slot-def-name slot-def))
+			 value)))
+	    slot-defs)))
+  
 (defmacro def-widget-with-history (name inherits-from slot-defs)
   `(defwidget ,name ,inherits-from ,(mapcar #'(lambda (slot-def)
-						(append slot-def '(:historied)))
+						(set-historied slot-def))
 					    slot-defs)))
 
-(defun def-widget-snapshotter (slot-defs)
-  `(defmethod take-snapshot ((widget widget))
-     ,@(mapcar #'(lambda (slot-def)
-		   (when (is-historied slot-def)
-		     `(set-slot-history-value widget
-					      (,(slot-def-name slot-def) widget))))
-	       slot-defs)))
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (defun def-widget-snapshotter (class-name slot-defs)
+    `(defmethod take-snapshot ((widget ,class-name))
+       ,@(mapcar #'(lambda (slot-def)
+		     (when (is-historied slot-def)
+		       `(set-slot-history-value widget
+						,(slot-def-name slot-def)
+						(,(slot-def-name slot-def) widget))))
+		 slot-defs)
+       (call-next-method))))
 
 (defmacro defwidget (name inherits-from slot-defs)
   ;; slot-defs: (<name> :widget :initform <initform>)
   `(progn
-     (defclass ,name (,inherits-from)
+     (defclass ,name ,inherits-from
        ,(mapcar #'(lambda (slot-args)
 		    (destructuring-bind (slot-name &key (initform nil initform-p))
 			slot-args
 		      `(,slot-name
 			:initarg ,(intern (symbol-name slot-name)
 					  :keyword)
-			:writer ,slot-name
 			,@(when initform-p (list :initform initform)))))
 		(mapcar #'(lambda (slot-def)
 			    (if (atom slot-def)
@@ -184,13 +210,40 @@
      (defun ,(cat-symbols 'create '- name) (&rest args)
        (apply #'make-instance (cons ',name args)))
      ,@(def-widget-readers slot-defs)
-     ,(def-widget-snapshotter slot-defs)
+     ,@(def-widget-setfers slot-defs)
+     ,(def-widget-snapshotter name slot-defs)
      (defmethod child-widgets ((widget ,name))
        (list 
 	,@(remove-nils
 	   (mapcar #'(lambda (slot-def)
 		       (when (is-widget slot-def)
 			 `(,(slot-def-name slot-def) widget))) slot-defs))))))
+
+(defwidget widget ()
+  ((render-stack :initform '())
+   (callback-stack :initform '())
+   (rendering-for :initform nil)))
+
+;; (defclass widget ()
+;;   ((render-stack :initform '() :accessor render-stack)
+;;    (callback-stack :initform '() :accessor callback-stack)
+;;    (rendering-for :initform nil :accessor rendering-for)))
+
+(defmethod render ((widget widget))
+  (if (render-stack widget)
+      (render-content (first (render-stack widget)) t)
+      (render-content widget t)))
+
+(defgeneric take-snapshot (widget))
+
+(defmethod take-snapshot ((widget t))
+  (declare (ignore widget)))
+
+(defgeneric before-render-content (widget &key))
+
+(defgeneric render-content (widget view &key))
+
+(defmethod render-content ((widget t) (view t) &key) "DEFAULT RENDERER")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; RENDERING UTILITIES
