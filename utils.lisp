@@ -32,6 +32,13 @@
   `(let ((it ,test))
      (if it ,then ,else)))
 
+(defmacro aand (&rest clauses)
+  (cond ((null clauses) t)
+	((null (cdr clauses)) (car clauses))
+	(t
+	 `(aif ,(first clauses)
+	       (aand ,@(rest clauses))))))
+
 (defun limit (list n)
   (labels ((rec (built-list rem n)
 	     (cond
