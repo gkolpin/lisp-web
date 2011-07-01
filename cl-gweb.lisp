@@ -11,6 +11,7 @@
 (defvar *init-fun* nil)
 (defvar *port* 4343)
 (defparameter base-url "/cl-gweb")
+(defparameter input-url "/input")
 (defvar *form-callback-hash* nil)
 (defvar *radio-group-name*)
 (defvar *radio-group-callback-map*)
@@ -61,6 +62,20 @@
 (defun retrieve-user-session (hunchentoot-session)
   (gethash hunchentoot-session *user-sessions*))
 
+(define-easy-handler (input-handler :uri input-url)
+    ((frame-key :real-name "k") (inputs :parameter-type 'hash-table) (submit-callbacks :parameter-type 'hash-table))
+  (setf (content-type*) "text/html")
+  (no-cache)
+  (unless *session* (store-user-session (initialize-user-session (start-session))))
+  (unless (retrieve-user-session *session*)
+    (store-user-session (initialize-user-session (start-session))))
+  (let* ((*cur-user-session* (retrieve-user-session *session*))
+	 (*callback-hash* (callback-hash *cur-user-session*)))
+    (unless frame-key (redirect (gen-new-frame-url base-url)))
+    (let ((*frame-key* frame-key))
+      (evaluate-request frame-key inputs submit-callbacks :do-rendering nil)))
+  (redirect (gen-new-frame-url base-url :frame-key frame-key)))
+
 (define-easy-handler (root :uri base-url)
     ((frame-key :real-name "k") (inputs :parameter-type 'hash-table) (submit-callbacks :parameter-type 'hash-table))
   (setf (content-type*) "text/html")
@@ -70,23 +85,23 @@
     (store-user-session (initialize-user-session (start-session))))
   (let* ((*cur-user-session* (retrieve-user-session *session*))
 	 (*callback-hash* (callback-hash *cur-user-session*)))
-    (unless frame-key (redirect (gen-new-frame-url)))
+    (unless frame-key (redirect (gen-new-frame-url base-url)))
     (let ((*frame-key* frame-key))
       (evaluate-request frame-key inputs submit-callbacks))))
 
 (defun remove-callbacks ()
   (clrhash *callback-hash*))
 
-(defun evaluate-request (action-id inputs submit-callbacks)
+(defun evaluate-request (action-id inputs submit-callbacks &key (do-rendering t))
   ;; evaluate actions with optional inputs - perform before renders - perform renders
   (update-widgets-with-frame-key)
   (perform-action action-id inputs submit-callbacks)
   (remove-callbacks)
   (pre-render-widgets)
   (let ((*render-stream* (make-string-output-stream)))
-    (render-session-widgets)
+    (when do-rendering (render-session-widgets))
     (store-widget-snapshots)
-    (get-output-stream-string *render-stream*)))
+    (when do-rendering (get-output-stream-string *render-stream*))))
   
 (defun perform-action (action-id &rest args)
   (awhen (gethash action-id *callback-hash*)
@@ -280,8 +295,8 @@
   (concatenate 'string "k" 
 	       (write-to-string (pincf (frame-key *cur-user-session*)))))
 
-(defun gen-new-frame-url (&key frame-key)
-  (add-get-params-to-url base-url "k" (if frame-key frame-key (gen-callback-key))))
+(defun gen-new-frame-url (url &key frame-key)
+  (add-get-params-to-url url "k" (if frame-key frame-key (gen-callback-key))))
 
 (defun add-get-params-to-url (url &rest name-value-pairs)
   (labels ((rec (name-value-pairs url)
@@ -335,7 +350,7 @@
 		      (funcall callback))))
     (with-link-callback (callback-key callback)
       (to-html
-	(:a :href (gen-new-frame-url :frame-key callback-key) (str link-text))))))
+	(:a :href (gen-new-frame-url base-url :frame-key callback-key) (str link-text))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; html form utilities
@@ -363,7 +378,7 @@
 	   (,form-callback-key-arg (gen-callback-key)))
        (let* ((*form-callback-hash* (make-hash-table :test 'equal))
 	      (*callback-required-hash* (make-hash-table :test 'equal))
-	      (,frame-url-arg (gen-new-frame-url :frame-key ,form-callback-key-arg)))
+	      (,frame-url-arg (gen-new-frame-url input-url :frame-key ,form-callback-key-arg)))
 	 (to-html
 	   (:form :method "POST" :action ,frame-url-arg
 		  ,@body))

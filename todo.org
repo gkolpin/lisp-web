@@ -30,9 +30,11 @@
 * 6/23/2011
   - fix html-to-string (it's trying to be a code walker, but it fails miserably for things like (let ((<name-of-who-fun>))...))
 * 6/24/2011
+  - history slots will for a previous frame key will be copied to the current frame key hash
+  - remove 'slot-value' usages - because of historied widgets, all slot access needs to be through methods, not slot-value
+* 6/30/2011
   - create form file upload utility
   - determine what 'calling' a widget means for things like the children method - when is the children method used and does the callee's children method get called instead of the caller's?
   - look at being able to 'call' functions and place them in render-stacks
   - test on-true and on-false for checkbox
-  - remove 'slot-value' usages - because of historied widgets, all slot access needs to be through methods, not slot-value
-  - history slots will for a previous frame key will be copied to the current frame key hash
+  - have separate handler for form submission so that back button doesn't rePOST form data
