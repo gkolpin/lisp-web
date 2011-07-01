@@ -46,7 +46,7 @@
    (frame-key :initform 1 :accessor frame-key)
    (callback-hash :initarg :callback-hash :accessor callback-hash)
    (announcer :initform (create-announcer) :accessor announcer)
-   (widget-snapshots :initform (make-hash-table) :accessor widget-snapshots)))
+   (widget-snapshots :initform (make-hash-table :test 'equal) :accessor widget-snapshots)))
 
 (defun initialize-user-session (hunchentoot-session)
   (let ((*cur-user-session* (make-instance 'user-session 
@@ -79,6 +79,7 @@
 
 (defun evaluate-request (action-id inputs submit-callbacks)
   ;; evaluate actions with optional inputs - perform before renders - perform renders
+  (update-widgets-with-frame-key)
   (perform-action action-id inputs submit-callbacks)
   (remove-callbacks)
   (pre-render-widgets)
@@ -109,6 +110,10 @@
 (defun store-widget-snapshots ()
   (dolist (widget (widgets-in-tree (widget-tree *cur-user-session*)))
     (take-snapshot widget)))
+
+(defun update-widgets-with-frame-key ()
+  (dolist (widget (widgets-in-tree (widget-tree *cur-user-session*)))
+    (update-widget widget)))
 
 (defgeneric render (component))
 
@@ -182,6 +187,15 @@
 					    slot-defs)))
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
+  (defun def-update-widget (class-name slot-defs)
+    `(defmethod update-widget ((widget ,class-name))
+       ,@(mapcar #'(lambda (slot-def)
+		     (when (is-historied slot-def)
+		       `(setf (,(slot-def-name slot-def) widget)
+			      (get-slot-history-value widget 
+						      ',(slot-def-name slot-def)))))
+		 slot-defs)
+       (call-next-method)))
   (defun def-widget-snapshotter (class-name slot-defs)
     `(defmethod take-snapshot ((widget ,class-name))
        ,@(mapcar #'(lambda (slot-def)
@@ -214,6 +228,7 @@
        (apply #'make-instance (cons ',name args)))
      ,@(def-widget-readers name slot-defs)
      ,(def-widget-snapshotter name slot-defs)
+     ,(def-update-widget name slot-defs)
      (defmethod child-widgets ((widget ,name))
        (list 
 	,@(remove-nils
@@ -235,6 +250,16 @@
   (if (render-stack widget)
       (render-content (first (render-stack widget)) t)
       (render-content widget t)))
+
+;; takes a widget's value for the particular frame key and
+;; sets its current slot value with the 'historical' value.
+;; This is done before any actions are run, so that actions run
+;; on the current slot value, and then the current slot values
+;; are stored back to historical hashes.
+(defgeneric update-widget (widget))
+
+(defmethod update-widget ((widget t))
+  (declare (ignore widget)))
 
 (defgeneric take-snapshot (widget))
 

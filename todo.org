@@ -35,3 +35,4 @@
   - look at being able to 'call' functions and place them in render-stacks
   - test on-true and on-false for checkbox
   - remove 'slot-value' usages - because of historied widgets, all slot access needs to be through methods, not slot-value
+  - history slots will for a previous frame key will be copied to the current frame key hash
