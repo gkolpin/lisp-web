@@ -64,20 +64,14 @@
 
 (define-easy-handler (input-handler :uri input-url)
     ((frame-key :real-name "k") (inputs :parameter-type 'hash-table) (submit-callbacks :parameter-type 'hash-table))
-  (setf (content-type*) "text/html")
-  (no-cache)
-  (unless *session* (store-user-session (initialize-user-session (start-session))))
-  (unless (retrieve-user-session *session*)
-    (store-user-session (initialize-user-session (start-session))))
-  (let* ((*cur-user-session* (retrieve-user-session *session*))
-	 (*callback-hash* (callback-hash *cur-user-session*)))
-    (unless frame-key (redirect (gen-new-frame-url base-url)))
-    (let ((*frame-key* frame-key))
-      (evaluate-request frame-key inputs submit-callbacks :do-rendering nil)))
+  (handle-gweb-request frame-key inputs submit-callbacks nil)
   (redirect (gen-new-frame-url base-url :frame-key frame-key)))
 
 (define-easy-handler (root :uri base-url)
     ((frame-key :real-name "k") (inputs :parameter-type 'hash-table) (submit-callbacks :parameter-type 'hash-table))
+  (handle-gweb-request frame-key inputs submit-callbacks t))
+
+(defun handle-gweb-request (frame-key inputs submit-callbacks do-rendering)
   (setf (content-type*) "text/html")
   (no-cache)
   (unless *session* (store-user-session (initialize-user-session (start-session))))
@@ -87,7 +81,7 @@
 	 (*callback-hash* (callback-hash *cur-user-session*)))
     (unless frame-key (redirect (gen-new-frame-url base-url)))
     (let ((*frame-key* frame-key))
-      (evaluate-request frame-key inputs submit-callbacks))))
+      (evaluate-request frame-key inputs submit-callbacks :do-rendering do-rendering))))
 
 (defun remove-callbacks ()
   (clrhash *callback-hash*))

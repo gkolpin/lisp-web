@@ -38,3 +38,4 @@
   - look at being able to 'call' functions and place them in render-stacks
   - test on-true and on-false for checkbox
   - have separate handler for form submission so that back button doesn't rePOST form data
+  - figure out threading issues - should have only one thread acting per session
