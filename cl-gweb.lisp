@@ -6,6 +6,7 @@
 (defvar *acceptor* nil)
 (defvar *cur-user-session* nil)
 (defvar *user-sessions* (make-hash-table))
+(defvar *user-sessions-lock* (make-lock))
 (defvar *callback-hash* nil)
 (defvar *callback-required-hash* nil)
 (defvar *init-fun* nil)
@@ -57,10 +58,12 @@
     *cur-user-session*))
 
 (defun store-user-session (user-session)
-  (setf (gethash (hunchentoot-session user-session) *user-sessions*) user-session))
+  (with-lock-held (*user-sessions-lock*)
+    (setf (gethash (hunchentoot-session user-session) *user-sessions*) user-session)))
 
 (defun retrieve-user-session (hunchentoot-session)
-  (gethash hunchentoot-session *user-sessions*))
+  (with-lock-held (*user-sessions-lock*)
+    (gethash hunchentoot-session *user-sessions*)))
 
 (define-easy-handler (input-handler :uri input-url)
     ((frame-key :real-name "k") (inputs :parameter-type 'hash-table) (submit-callbacks :parameter-type 'hash-table))
