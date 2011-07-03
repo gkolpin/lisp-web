@@ -1,5 +1,5 @@
 (defpackage :cl-gweb
-  (:use :common-lisp :hunchentoot :cl-who :url-rewrite :local-time)
+  (:use :common-lisp :hunchentoot :cl-who :url-rewrite :local-time :bordeaux-threads)
   (:shadowing-import-from :hunchentoot #:url-encode)
   (:export #:*debug*
 	   #:render
