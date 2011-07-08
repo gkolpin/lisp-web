@@ -269,6 +269,9 @@
       (render-content (first (render-stack widget)) t)
       (render-content widget t)))
 
+(defmethod render ((list list))
+  (render-content list t))
+
 ;; takes a widget's value for the particular frame key and
 ;; sets its current slot value with the 'historical' value.
 ;; This is done before any actions are run, so that actions run
@@ -600,3 +603,16 @@
   (render-content (first (render-stack task)) t))
 
 (defgeneric task-go (task))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; lists as widgets
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defmethod render-content ((list list) (view t) &key)
+  (to-html
+   (dolist (widget list)
+     (htm
+      (render widget)))))
+
+(defmethod child-widgets ((list list))
+  list)

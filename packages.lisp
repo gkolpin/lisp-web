@@ -1,5 +1,6 @@
 (defpackage :cl-gweb
-  (:use :common-lisp :hunchentoot :cl-who :url-rewrite :local-time :bordeaux-threads)
+  (:use :common-lisp :hunchentoot :cl-who :url-rewrite :local-time :bordeaux-threads
+	:lisp-utils)
   (:shadowing-import-from :hunchentoot #:url-encode)
   (:export #:*debug*
 	   #:render
@@ -38,4 +39,4 @@
 	   #:def-widget-with-history))
 
 (defpackage :test1
-  (:use :common-lisp :cl-gweb :cl-who :local-time))
+  (:use :common-lisp :cl-gweb :cl-who :local-time :lisp-utils))

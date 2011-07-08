@@ -37,8 +37,9 @@
 * 7/2/2011
   - figure out threading issues - placed mutexes around user session hash accesses
 * 7/3/2011
+  - should there be per session thread locks to prevent multiple concurrent requests from the same session?
+* 7/4/2011
   - create form file upload utility
   - determine what 'calling' a widget means for things like the children method - when is the children method used and does the callee's children method get called instead of the caller's?
   - look at being able to 'call' functions and place them in render-stacks
   - test on-true and on-false for checkbox
-  - should there be per session thread locks to prevent multiple concurrent requests from the same session?
