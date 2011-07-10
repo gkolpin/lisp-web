@@ -36,7 +36,8 @@
 	   #:task-go
 	   #:*render-stream*
 	   #:to-html
-	   #:def-widget-with-history))
+	   #:def-widget-with-history
+	   #:create-fn-widget))
 
 (defpackage :test1
   (:use :common-lisp :cl-gweb :cl-who :local-time :lisp-utils))

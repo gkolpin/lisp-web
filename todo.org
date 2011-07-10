@@ -43,3 +43,4 @@
   - determine what 'calling' a widget means for things like the children method - when is the children method used and does the callee's children method get called instead of the caller's?
   - look at being able to 'call' functions and place them in render-stacks
   - test on-true and on-false for checkbox
+  - add call-next-method to child-widgets method
