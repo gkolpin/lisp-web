@@ -272,6 +272,9 @@
 (defmethod render ((list list))
   (render-content list t))
 
+(defmethod render ((vector vector))
+  (render-content vector t))
+
 ;; takes a widget's value for the particular frame key and
 ;; sets its current slot value with the 'historical' value.
 ;; This is done before any actions are run, so that actions run
@@ -616,3 +619,16 @@
 
 (defmethod child-widgets ((list list))
   list)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; arrays as widgets
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defmethod render-content ((vector vector) (view t) &key)
+  (to-html
+    (doarray (widget vector)
+      (htm
+       (render widget)))))
+
+(defmethod child-widgets ((vector vector))
+  (coerce vector 'list))
