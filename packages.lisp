@@ -37,7 +37,10 @@
 	   #:*render-stream*
 	   #:to-html
 	   #:def-widget-with-history
-	   #:create-fn-widget))
+	   #:create-fn-widget
+	   #:add-folder-dispatcher
+	   #:pre-render
+	   #:import-css))
 
 (defpackage :test1
   (:use :common-lisp :cl-gweb :cl-who :local-time :lisp-utils))

@@ -19,10 +19,13 @@
 (defvar *radio-group-callback-map*)
 (defvar *render-stream* nil)
 (defvar *frame-key*)
+(defvar *css-files* nil)
+(defvar *custom-dispatcher* nil)
 
 (defun start-gweb ()
   (when *debug*
     (setf *catch-errors-p* nil))
+  (pushnew (funcall *custom-dispatcher* 'http-dispatch) *dispatch-table*)
   (hunchentoot:start (setf *acceptor* 
 			   (make-instance 'acceptor
 					  ;;:address "127.0.0.1"
@@ -41,6 +44,27 @@
 (defun restart-gweb ()
   (stop-gweb)
   (start-gweb))
+
+(defun create-custom-dispatcher ()
+  (let ((folder-dispatchers '())
+	(folder-uri-prefixes '()))
+    (labels ((add-folder-dispatcher (uri-prefix base-path)
+	       (unless (member uri-prefix folder-uri-prefixes :test 'equal)
+		 (pushnew uri-prefix folder-uri-prefixes)
+		 (pushnew (create-folder-dispatcher-and-handler uri-prefix base-path) folder-dispatchers)))
+	     (http-dispatch (request)
+	       (dolist (dispatcher folder-dispatchers)
+		 (awhen (funcall dispatcher request)
+		   (return it))))
+	     (dispatch (sym)
+	       (case sym
+		 (add-folder-dispatcher #'add-folder-dispatcher)
+		 (http-dispatch #'http-dispatch))))
+      #'dispatch)))
+
+(eval-when (:load-toplevel :execute)
+  (unless *custom-dispatcher*
+    (setf *custom-dispatcher* (create-custom-dispatcher))))
 
 (defclass user-session ()
   ((hunchentoot-session :initarg :hunchentoot-session :accessor hunchentoot-session)
@@ -89,7 +113,8 @@
     (let* ((*cur-user-session* (retrieve-user-session *session*))
 	   (*callback-hash* (callback-hash *cur-user-session*)))
       (unless frame-key (redirect (gen-new-frame-url base-url)))
-      (let ((*frame-key* frame-key))
+      (let ((*frame-key* frame-key)
+	    (*css-files* '()))
 	(evaluate-request frame-key inputs submit-callbacks :do-rendering do-rendering)))))
 
 (defun remove-callbacks ()
@@ -111,7 +136,8 @@
     (apply it args)))
 
 (defun pre-render-widgets ()
-  )
+  (dolist (widget (widgets-in-tree (widget-tree *cur-user-session*)))
+    (pre-render widget)))
 
 ;; widgets should appear with parent widgets appearing before child widgets
 (defun widgets-in-tree (widget-tree)
@@ -121,9 +147,22 @@
 		 (cons widget-tree (mappend #'widgets-in-tree 
 					    (child-widgets widget-tree))))))
     (widgets-in-tree widget-tree)))
-		 
+
+(defmacro to-html (&body body)
+  `(with-html-output (*render-stream*)
+     ,@body))
+
 (defun render-session-widgets ()
-  (render (widget-tree *cur-user-session*)))
+  (to-html
+    (:html 
+     (:head
+      (dolist (css-file *css-files*)
+	(htm (:link :rel "stylesheet"
+		    :href css-file
+		    :type "text/css"
+		    :media "screen"))))
+     (:body
+      (render (widget-tree *cur-user-session*))))))
 
 (defun store-widget-snapshots ()
   (dolist (widget (widgets-in-tree (widget-tree *cur-user-session*)))
@@ -134,6 +173,12 @@
     (update-widget widget)))
 
 (defgeneric render (component))
+
+(defun add-folder-dispatcher (uri-prefix base-path)
+  (funcall (funcall *custom-dispatcher* 'add-folder-dispatcher) uri-prefix base-path))
+
+(defun import-css (css-uri)
+  (pushnew css-uri *css-files* :test 'equal))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;WIDGETS
@@ -296,6 +341,10 @@
 
 (defmethod render-content ((widget t) (view t) &key) "DEFAULT RENDERER")
 
+(defgeneric pre-render (component))
+
+(defmethod pre-render ((widget t)))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; RENDERING UTILITIES
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -348,10 +397,6 @@
 		 ,get-regular-callback)
 	    get-regular-callback)
        ,@body)))
-
-(defmacro to-html (&body body)
-  `(with-html-output (*render-stream*)
-     ,@body))
 
 (defun create-link (callback link-text)
   (let ((callback #'(lambda (inputs submit-inputs)
