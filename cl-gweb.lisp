@@ -25,7 +25,7 @@
 (defun start-gweb ()
   (when *debug*
     (setf *catch-errors-p* nil))
-  (pushnew (funcall *custom-dispatcher* 'http-dispatch) *dispatch-table*)
+  (pushnew (get-action *custom-dispatcher* 'http-dispatch) *dispatch-table*)
   (hunchentoot:start (setf *acceptor* 
 			   (make-instance 'acceptor
 					  ;;:address "127.0.0.1"
@@ -45,22 +45,15 @@
   (stop-gweb)
   (start-gweb))
 
-(defun create-custom-dispatcher ()
-  (let ((folder-dispatchers '())
-	(folder-uri-prefixes '()))
-    (labels ((add-folder-dispatcher (uri-prefix base-path)
-	       (unless (member uri-prefix folder-uri-prefixes :test 'equal)
-		 (pushnew uri-prefix folder-uri-prefixes)
-		 (pushnew (create-folder-dispatcher-and-handler uri-prefix base-path) folder-dispatchers)))
-	     (http-dispatch (request)
-	       (dolist (dispatcher folder-dispatchers)
-		 (awhen (funcall dispatcher request)
-		   (return it))))
-	     (dispatch (sym)
-	       (case sym
-		 (add-folder-dispatcher #'add-folder-dispatcher)
-		 (http-dispatch #'http-dispatch))))
-      #'dispatch)))
+(def-fn-obj custom-dispatcher ((folder-dispatchers '()) (folder-uri-prefixes '()))
+  (add-folder-dispatcher (uri-prefix base-path)
+			 (unless (member uri-prefix folder-uri-prefixes :test 'equal)
+			   (pushnew uri-prefix folder-uri-prefixes)
+			   (pushnew (create-folder-dispatcher-and-handler uri-prefix base-path) folder-dispatchers)))
+  (http-dispatch (request)
+		 (dolist (dispatcher folder-dispatchers)
+		   (awhen (funcall dispatcher request)
+		     (return it)))))
 
 (eval-when (:load-toplevel :execute)
   (unless *custom-dispatcher*
@@ -175,7 +168,7 @@
 (defgeneric render (component))
 
 (defun add-folder-dispatcher (uri-prefix base-path)
-  (funcall (funcall *custom-dispatcher* 'add-folder-dispatcher) uri-prefix base-path))
+  (send-message *custom-dispatcher* 'add-folder-dispatcher uri-prefix base-path))
 
 (defun import-css (css-uri)
   (pushnew css-uri *css-files* :test 'equal))
@@ -615,25 +608,20 @@
 
 (defclass announcement () ())
 
-(defun create-announcer ()
-  (let ((listeners (make-hash-table)))
-    (labels ((register-listener (type action)
-	       (setf (gethash type listeners) action))
-	     (announce (announcement)
-	       (assert (typep announcement 'announcement))
-	       (funcall (gethash (type-of announcement) listeners)
-			announcement)))
-      #'(lambda (action &rest args)
-	  (case action
-	    (:register-listener (apply #'register-listener args))
-	    (:announce (apply #'announce args)))))))
+(def-fn-obj announcer ((listeners (make-hash-table)))
+  (register-listener (type action)
+		     (setf (gethash type listeners) action))
+  (announce (announcement)
+	    (assert (typep announcement 'announcement))
+	    (funcall (gethash (type-of announcement) listeners)
+		     announcement)))
 
 (defun register-listener (type action)
-  (funcall (announcer *cur-user-session*) :register-listener type action))
+  (send-message (announcer *cur-user-session*) 'register-listener type action))
 
 (defun announce (announcement)
   (assert (typep announcement 'announcement))
-  (funcall (announcer *cur-user-session*) :announce announcement))
+  (send-message (announcer *cur-user-session*) 'announce announcement))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; tasks
