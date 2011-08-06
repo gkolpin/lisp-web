@@ -40,7 +40,8 @@
 	   #:create-fn-widget
 	   #:add-folder-dispatcher
 	   #:pre-render
-	   #:import-css))
+	   #:import-css
+	   #:import-js))
 
 (defpackage :test1
   (:use :common-lisp :cl-gweb :cl-who :local-time :lisp-utils))

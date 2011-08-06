@@ -20,6 +20,7 @@
 (defvar *render-stream* nil)
 (defvar *frame-key*)
 (defvar *css-files* nil)
+(defvar *js-files* nil)
 (defvar *custom-dispatcher* nil)
 
 (defun start-gweb ()
@@ -107,7 +108,8 @@
 	   (*callback-hash* (callback-hash *cur-user-session*)))
       (unless frame-key (redirect (gen-new-frame-url base-url)))
       (let ((*frame-key* frame-key)
-	    (*css-files* '()))
+	    (*css-files* '())
+	    (*js-files* '()))
 	(evaluate-request frame-key inputs submit-callbacks :do-rendering do-rendering)))))
 
 (defun remove-callbacks ()
@@ -149,11 +151,14 @@
   (to-html
     (:html 
      (:head
+      (:script :src "//ajax.googleapis.com/ajax/libs/jquery/1.6.2/jquery.min.js" :type "text/javascript")
       (dolist (css-file *css-files*)
 	(htm (:link :rel "stylesheet"
 		    :href css-file
 		    :type "text/css"
-		    :media "screen"))))
+		    :media "screen")))
+      (dolist (js-file *js-files*)
+	(htm (:script :src js-file :type "text/javascript"))))
      (:body
       (render (widget-tree *cur-user-session*))))))
 
@@ -172,6 +177,9 @@
 
 (defun import-css (css-uri)
   (pushnew css-uri *css-files* :test 'equal))
+
+(defun import-js (js-uri)
+  (pushnew js-uri *js-files* :test 'equal))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;WIDGETS
@@ -333,6 +341,11 @@
 (defgeneric render-content (widget view &key))
 
 (defmethod render-content ((widget t) (view t) &key) "DEFAULT RENDERER")
+
+(defmethod render-content :around ((widget widget) (view t) &key)
+  (to-html
+    (:div :class (string-downcase (symbol-name (type-of widget)))
+	  (call-next-method))))
 
 (defgeneric pre-render (component))
 
