@@ -44,3 +44,4 @@
   - look at being able to 'call' functions and place them in render-stacks
   - test on-true and on-false for checkbox
   - add call-next-method to child-widgets method
+  - assign *cur-widget* for rendering functions and any other function that calls a method on a widget

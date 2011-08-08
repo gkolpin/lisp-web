@@ -55,7 +55,7 @@
     (:br)
     (create-link #'(lambda () 
 		     (incf (a widget))
-		     (answer widget (a widget))
+		     (answer (a widget))
 		     (announce (make-instance 'status-announcement
 					      :status "incrementing!")))
 		 "increment")
@@ -144,7 +144,6 @@
     (str (answers widget))
     (:br)
     (create-link #'(lambda () (call-widget (create-answer-widget)
-					   widget
 					   #'(lambda (answer)
 					       (set-conc (answers widget)
 							 answer))))
@@ -153,23 +152,20 @@
 (defmethod render-content ((widget answer-widget) (view t) &key)
   (to-html
     (create-link #'(lambda () (call-widget (create-answer-widget2)
-					   widget
 					   #'(lambda (answer)
-					       (answer widget
-						       (concatenate 'string
+					       (answer (concatenate 'string
 								    "Answer "
 								    answer)))))
 		 "Answer")))
 
 (defmethod render-content ((widget answer-widget2) (view t) &key)
   (to-html
-    (create-link #'(lambda () (answer widget "answer2 "))
+    (create-link #'(lambda () (answer "answer2 "))
 		 "Answer 2")))
 
 (defmethod task-go ((task task-test))
   (labels ((task-loop ()
 	     (call-widget (create-answer-widget)
-			  task
 			  #'(lambda (answer)
 			      (declare (ignore answer))
 			      (task-loop)))))

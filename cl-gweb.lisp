@@ -22,6 +22,7 @@
 (defvar *css-files* nil)
 (defvar *js-files* nil)
 (defvar *custom-dispatcher* nil)
+(defvar *cur-widget* nil)
 
 (defun start-gweb ()
   (when *debug*
@@ -343,13 +344,18 @@
 (defmethod render-content ((widget t) (view t) &key) "DEFAULT RENDERER")
 
 (defmethod render-content :around ((widget widget) (view t) &key)
-  (to-html
-    (:div :class (string-downcase (symbol-name (type-of widget)))
-	  (call-next-method))))
+  (let ((*cur-widget* widget))
+    (to-html
+      (:div :class (string-downcase (symbol-name (type-of widget)))
+	    (call-next-method)))))
 
 (defgeneric pre-render (component))
 
 (defmethod pre-render ((widget t)))
+
+(defmethod pre-render :around ((widget widget))
+  (let ((*cur-widget* widget))
+    (call-next-method)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; RENDERING UTILITIES
@@ -384,25 +390,34 @@
 		    `(funcall ,val-modifier ,val-arg)
 		    val-arg)))))
 
+(defun prepare-callback (callback cur-widget)
+  #'(lambda (&rest args)
+      (let ((*cur-widget* cur-widget))
+	(apply callback args))))
+
 (defmacro with-link-callback ((callback-key-arg callback-fn) &body body)
-  `(let ((,callback-key-arg (gen-callback-key)))
-     (setf (gethash ,callback-key-arg *callback-hash*)
-	   ,callback-fn)
-     ,@body))
+  (with-gensyms (callback-fn-name)
+    `(let ((,callback-key-arg (gen-callback-key))
+	   (,callback-fn-name (prepare-callback ,callback-fn *cur-widget*)))
+       (setf (gethash ,callback-key-arg *callback-hash*)
+	     ,callback-fn-name)
+       ,@body)))
 
 (defmacro with-form-callback ((callback-key-arg callback-fn &optional (callback-required nil callback-required-p))
 			      &body body)
-  (let ((get-regular-callback
-	  `(setf (gethash ,callback-key-arg *form-callback-hash*)
-		 ,callback-fn)))
-    `(let ((,callback-key-arg (gen-callback-key)))
-       ,(if callback-required-p
-	    `(if ,callback-required
-		 (setf (gethash ,callback-key-arg *callback-required-hash*)
-		       ,callback-fn)
-		 ,get-regular-callback)
-	    get-regular-callback)
-       ,@body)))
+  (with-gensyms (callback-fn-name)
+    (let ((get-regular-callback
+	   `(setf (gethash ,callback-key-arg *form-callback-hash*)
+		  ,callback-fn-name)))
+      `(let ((,callback-key-arg (gen-callback-key))
+	     (,callback-fn-name (prepare-callback ,callback-fn *cur-widget*)))
+	 ,(if callback-required-p
+	      `(if ,callback-required
+		   (setf (gethash ,callback-key-arg *callback-required-hash*)
+			 ,callback-fn-name)
+		   ,get-regular-callback)
+	      get-regular-callback)
+	 ,@body))))
 
 (defun create-link (callback link-text)
   (let ((callback #'(lambda (inputs submit-inputs)
@@ -528,7 +543,8 @@
 		 (funcall (gethash val radio-callback-map)))))))
 
 (defun radio-button (&key selected callback)
-  (let ((callback-key (gen-callback-key)))
+  (let ((callback-key (gen-callback-key))
+	(callback (prepare-callback callback *cur-widget*)))
     (setf (gethash callback-key *radio-group-callback-map*) callback)
     (create-basic-input callback-key :radio
 			:name (format nil "~A{~A}" "inputs" *radio-group-name*)
@@ -551,7 +567,8 @@
 
 (defun date-input (&key callback with options)
   (let ((months '(january february march april may june july august september october
-		  november december)))
+		  november december))
+	(callback (prepare-callback callback *cur-widget*)))
     (bind-nil (month day year)
       (with-prereq-callbacks #'(lambda ()
 				 (funcall callback
@@ -592,28 +609,32 @@
 ;; html control flow
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defun call-widget (new-widget cur-widget callback)
-  (if (rendering-for cur-widget)
-      (progn
-	(push new-widget (render-stack (rendering-for cur-widget)))
-	(push callback (callback-stack (rendering-for cur-widget)))
-	(setf (rendering-for new-widget) (rendering-for cur-widget)))
-      (progn
-	(push new-widget (render-stack cur-widget))
-	(push callback (callback-stack cur-widget))
-	(setf (rendering-for new-widget) cur-widget))))
+(defun call-widget (new-widget callback)
+  (let ((callback (prepare-callback callback *cur-widget*))
+	(cur-widget *cur-widget*))
+    (if (rendering-for cur-widget)
+	(progn
+	  (push new-widget (render-stack (rendering-for cur-widget)))
+	  (push callback (callback-stack (rendering-for cur-widget)))
+	  (setf (rendering-for new-widget) (rendering-for cur-widget)))
+	(progn
+	  (push new-widget (render-stack cur-widget))
+	  (push callback (callback-stack cur-widget))
+	  (setf (rendering-for new-widget) cur-widget)))))
 
-(defun answer (cur-widget val)
-  (if (rendering-for cur-widget)
-    (let ((callback (pop (callback-stack (rendering-for cur-widget)))))
-      (pop (render-stack (rendering-for cur-widget)))
-      (funcall callback val))
-    (dolist (callback (callback-stack cur-widget))
-      (funcall callback val))))
+(defun answer (val)
+  (let ((cur-widget *cur-widget*))
+    (if (rendering-for cur-widget)
+	(let ((callback (pop (callback-stack (rendering-for cur-widget)))))
+	  (pop (render-stack (rendering-for cur-widget)))
+	  (funcall callback val))
+	(dolist (callback (callback-stack cur-widget))
+	  (funcall callback val)))))
 
 (defun on-answer (widget callback)
   (assert (not (rendering-for widget)))
-  (push callback (callback-stack widget)))
+  (let ((callback (prepare-callback callback *cur-widget*)))
+    (push callback (callback-stack widget))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; announcers
@@ -652,6 +673,10 @@
   (render-content (first (render-stack task)) t))
 
 (defgeneric task-go (task))
+
+(defmethod task-go :around ((task task))
+  (let ((*cur-widget* task))
+    (call-next-method)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; lists as widgets
