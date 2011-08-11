@@ -703,3 +703,12 @@
 
 (defmethod child-widgets ((vector vector))
   (coerce vector 'list))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; strings as widgets
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defmethod render-content ((string string) (view t) &key)
+  (to-html (str string)))
+
+(defmethod child-widgets ((string string)) '())
