@@ -153,6 +153,7 @@
     (:html 
      (:head
       (:script :src "//ajax.googleapis.com/ajax/libs/jquery/1.6.2/jquery.min.js" :type "text/javascript")
+      (:script :src "//ajax.googleapis.com/ajax/libs/jqueryui/1.8.16/jquery-ui.min.js" :type "text/javascript")
       (dolist (css-file *css-files*)
 	(htm (:link :rel "stylesheet"
 		    :href css-file
@@ -304,7 +305,8 @@
 (defwidget widget ()
   ((render-stack :initform '())
    (callback-stack :initform '())
-   (rendering-for :initform nil)))
+   (rendering-for :initform nil)
+   (style :initform "")))
 
 ;; (defclass widget ()
 ;;   ((render-stack :initform '() :accessor render-stack)
@@ -347,6 +349,7 @@
   (let ((*cur-widget* widget))
     (to-html
       (:div :class (string-downcase (symbol-name (type-of widget)))
+	    :style (style widget)
 	    (call-next-method)))))
 
 (defgeneric pre-render (component))

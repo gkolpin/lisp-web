@@ -41,7 +41,8 @@
 	   #:add-folder-dispatcher
 	   #:pre-render
 	   #:import-css
-	   #:import-js))
+	   #:import-js
+	   #:style))
 
 (defpackage :test1
   (:use :common-lisp :cl-gweb :cl-who :local-time :lisp-utils))
