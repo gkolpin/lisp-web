@@ -496,7 +496,7 @@
 						      callback-key)
 			  :callback #'submit-callback))))
 
-(defun create-basic-input (value type &key name callback on of checked
+(defun create-basic-input (value type &key id name callback on of checked
 				       (callback-required nil) maxlength size)
   (let ((input-callback #'(lambda (val)
 			     (cond (callback (funcall callback val))
@@ -504,6 +504,7 @@
     (with-form-callback (callback-key input-callback callback-required)
       (to-html
 	(:input :type (symbol-name type)
+		:id id
 		:name (if name 
 			  name
 			  (format nil "~A{~A}" "inputs"
