@@ -306,6 +306,7 @@
   ((render-stack :initform '())
    (callback-stack :initform '())
    (rendering-for :initform nil)
+   (id :initform nil)
    (style :initform "")))
 
 ;; (defclass widget ()
@@ -348,7 +349,8 @@
 (defmethod render-content :around ((widget widget) (view t) &key)
   (let ((*cur-widget* widget))
     (to-html
-      (:div :class (string-downcase (symbol-name (type-of widget)))
+      (:div :id (id widget)
+	    :class (string-downcase (symbol-name (type-of widget)))
 	    :style (style widget)
 	    (call-next-method)))))
 
@@ -363,6 +365,9 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; RENDERING UTILITIES
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defun gen-unique-sym ()
+  (intern (string-upcase (gen-callback-key))))
 
 (defun gen-callback-key ()
   (concatenate 'string "k" 
@@ -450,7 +455,7 @@
    	       (funcall (gethash submit-name callback-hash) submit-val))
    	   submit-inputs))
 
-(defmacro create-form (&body body)
+(defmacro create-form (&optional form-opts &body body)
   (with-gensyms (frame-url-arg form-callback-key-arg form-callback-arg)
     `(let ((,form-callback-arg nil)
 	   (,form-callback-key-arg (gen-callback-key)))
@@ -458,7 +463,7 @@
 	      (*callback-required-hash* (make-hash-table :test 'equal))
 	      (,frame-url-arg (gen-new-frame-url input-url :frame-key ,form-callback-key-arg)))
 	 (to-html
-	   (:form :method "POST" :action ,frame-url-arg
+	   (:form :id ,(getf form-opts :id) :method "POST" :action ,frame-url-arg
 		  ,@body))
 	 (let ((callback-hash *form-callback-hash*)
 	       (callback-required-hash *callback-required-hash*))

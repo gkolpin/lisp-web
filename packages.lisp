@@ -42,7 +42,8 @@
 	   #:pre-render
 	   #:import-css
 	   #:import-js
-	   #:style))
+	   #:style
+	   #:gen-unique-sym))
 
 (defpackage :test1
   (:use :common-lisp :cl-gweb :cl-who :local-time :lisp-utils))
