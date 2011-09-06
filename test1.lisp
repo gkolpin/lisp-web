@@ -67,7 +67,7 @@
 
 (defmethod render-content ((widget test-form) (view t) &key)
   (let ((input-val nil))
-    (create-form
+    (create-form ()
       (dolist (message (messages widget))
 	(htm
 	 (str message)

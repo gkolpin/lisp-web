@@ -350,7 +350,7 @@
   (let ((*cur-widget* widget))
     (to-html
       (:div :id (id widget)
-	    :class (string-downcase (symbol-name (type-of widget)))
+	    :class (ui-class widget)
 	    :style (style widget)
 	    (call-next-method)))))
 
@@ -721,3 +721,12 @@
   (to-html (str string)))
 
 (defmethod child-widgets ((string string)) '())
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; allow widgets to set their own ui-class
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defgeneric ui-class (widget))
+
+(defmethod ui-class ((widget t))
+  (string-downcase (symbol-name (type-of widget))))

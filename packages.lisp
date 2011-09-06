@@ -43,7 +43,9 @@
 	   #:import-css
 	   #:import-js
 	   #:style
-	   #:gen-unique-sym))
+	   #:gen-unique-sym
+	   #:id
+	   #:ui-class))
 
 (defpackage :test1
   (:use :common-lisp :cl-gweb :cl-who :local-time :lisp-utils))
