@@ -172,7 +172,7 @@
   (dolist (widget (widgets-in-tree (widget-tree *cur-user-session*)))
     (update-widget widget)))
 
-(defgeneric render (component))
+(defgeneric render (component &optional view))
 
 (defun add-folder-dispatcher (uri-prefix base-path)
   (send-message *custom-dispatcher* 'add-folder-dispatcher uri-prefix base-path))
@@ -314,16 +314,16 @@
 ;;    (callback-stack :initform '() :accessor callback-stack)
 ;;    (rendering-for :initform nil :accessor rendering-for)))
 
-(defmethod render ((widget widget))
+(defmethod render ((widget widget) &optional (view t))
   (if (render-stack widget)
-      (render-content (first (render-stack widget)) t)
-      (render-content widget t)))
+      (render-content (first (render-stack widget)) view)
+      (render-content widget view)))
 
-(defmethod render ((list list))
-  (render-content list t))
+(defmethod render ((list list) &optional (view t))
+  (render-content list view))
 
-(defmethod render ((vector vector))
-  (render-content vector t))
+(defmethod render ((vector vector) &optional (view t))
+  (render-content vector view))
 
 ;; takes a widget's value for the particular frame key and
 ;; sets its current slot value with the 'historical' value.
@@ -350,7 +350,7 @@
   (let ((*cur-widget* widget))
     (to-html
       (:div :id (id widget)
-	    :class (ui-class widget)
+	    :class (ui-class widget view)
 	    :style (style widget)
 	    (call-next-method)))))
 
@@ -676,10 +676,10 @@
   (declare (ignore task))
   '())
 
-(defmethod render ((task task))
+(defmethod render ((task task) &optional (view t))
   (unless (render-stack task) (task-go task))
   (assert (render-stack task))
-  (render-content (first (render-stack task)) t))
+  (render-content (first (render-stack task)) view))
 
 (defgeneric task-go (task))
 
@@ -726,7 +726,7 @@
 ;; allow widgets to set their own ui-class
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defgeneric ui-class (widget))
+(defgeneric ui-class (widget view))
 
-(defmethod ui-class ((widget t))
+(defmethod ui-class ((widget t) (view t))
   (string-downcase (symbol-name (type-of widget))))
