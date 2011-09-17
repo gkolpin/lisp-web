@@ -3,6 +3,7 @@
 	:lisp-utils)
   (:shadowing-import-from :hunchentoot #:url-encode)
   (:export #:*debug*
+	   #:*dbg-errors*
 	   #:render
 	   #:render-content
 	   #:before-render
@@ -45,7 +46,9 @@
 	   #:style
 	   #:gen-unique-sym
 	   #:id
-	   #:ui-class))
+	   #:ui-class
+	   #:render-page
+	   #:pre-render-widget-tree))
 
 (defpackage :test1
   (:use :common-lisp :cl-gweb :cl-who :local-time :lisp-utils))

@@ -3,6 +3,7 @@
 (in-package :cl-gweb)
 
 (defvar *debug* nil)
+(defvar *dbg-errors* nil)
 (defvar *acceptor* nil)
 (defvar *cur-user-session* nil)
 (defvar *user-sessions* (make-hash-table))
@@ -12,7 +13,7 @@
 (defvar *callback-required-hash* nil)
 (defvar *init-fun* nil)
 (defvar *port* 4343)
-(defparameter base-url "/cl-gweb")
+(defparameter base-url "/")
 (defparameter input-url "/input")
 (defvar *form-callback-hash* nil)
 (defvar *radio-group-name*)
@@ -25,7 +26,7 @@
 (defvar *cur-widget* nil)
 
 (defun start-gweb ()
-  (when *debug*
+  (when *dbg-errors*
     (setf *catch-errors-p* nil))
   (pushnew (get-action *custom-dispatcher* 'http-dispatch) *dispatch-table*)
   (hunchentoot:start (setf *acceptor* 
@@ -131,9 +132,12 @@
   (awhen (gethash action-id *callback-hash*)
     (apply it args)))
 
-(defun pre-render-widgets ()
-  (dolist (widget (widgets-in-tree (widget-tree *cur-user-session*)))
+(defun pre-render-widget-tree (widget-tree)
+  (dolist (widget (widgets-in-tree widget-tree))
     (pre-render widget)))
+
+(defun pre-render-widgets ()
+  (pre-render-widget-tree (widget-tree *cur-user-session*)))
 
 ;; widgets should appear with parent widgets appearing before child widgets
 (defun widgets-in-tree (widget-tree)
@@ -149,20 +153,23 @@
      ,@body))
 
 (defun render-session-widgets ()
+  (render-page (widget-tree *cur-user-session*)))
+
+(defun render-page (widget)
   (to-html
     (:html 
      (:head
-      (:script :src "//ajax.googleapis.com/ajax/libs/jquery/1.6.2/jquery.min.js" :type "text/javascript")
-      (:script :src "//ajax.googleapis.com/ajax/libs/jqueryui/1.8.16/jquery-ui.min.js" :type "text/javascript")
+      (:script :src "http://ajax.googleapis.com/ajax/libs/jquery/1.6.2/jquery.min.js" :type "text/javascript")
+      (:script :src "http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.16/jquery-ui.min.js" :type "text/javascript")
       (dolist (css-file *css-files*)
 	(htm (:link :rel "stylesheet"
 		    :href css-file
 		    :type "text/css"
 		    :media "screen")))
-      (dolist (js-file *js-files*)
-	(htm (:script :src js-file :type "text/javascript"))))
-     (:body
-      (render (widget-tree *cur-user-session*))))))
+      (:body
+       (render widget)
+       (dolist (js-file *js-files*)
+	 (htm (:script :src js-file :type "text/javascript"))))))))
 
 (defun store-widget-snapshots ()
   (dolist (widget (widgets-in-tree (widget-tree *cur-user-session*)))
