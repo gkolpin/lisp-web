@@ -321,6 +321,9 @@
 ;;    (callback-stack :initform '() :accessor callback-stack)
 ;;    (rendering-for :initform nil :accessor rendering-for)))
 
+(defmethod render ((obj t) &optional (view t))
+  (render-content obj view))
+
 (defmethod render ((widget widget) &optional (view t))
   (if (render-stack widget)
       (render-content (first (render-stack widget)) view)
