@@ -611,7 +611,7 @@
 			     :size 2 :maxlength 2))
 	       (year-html () (text-input (timestamp-year (if with with now))
 					 :callback year-callback :callback-required t
-					 :size 2 :maxlength 4)))
+					 :size 4 :maxlength 4)))
 	    (to-html
 	     (if options
 		 (dolist (option options)
@@ -703,9 +703,10 @@
 
 (defmethod render-content ((list list) (view t) &key)
   (to-html
-   (dolist (widget list)
-     (htm
-      (render widget)))))
+    (:ul
+     (dolist (widget list)
+       (htm
+	(:li (render widget)))))))
 
 (defmethod child-widgets ((list list))
   list)
