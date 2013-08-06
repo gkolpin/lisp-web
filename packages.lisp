@@ -48,7 +48,8 @@
 	   #:id
 	   #:ui-class
 	   #:render-page
-	   #:pre-render-widget-tree))
+	   #:pre-render-widget-tree
+	   #:button-input))
 
 (defpackage :test1
   (:use :common-lisp :cl-gweb :cl-who :local-time :lisp-utils))

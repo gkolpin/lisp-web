@@ -502,23 +502,38 @@
 	(create-basic-input nil :checkbox	:checked checked 
 			    :callback callback :on on :of of :callback-required t))))
 
-(defun submit-input (value callback)
+(defun submit-input (value callback &key ui-class)
   (labels ((submit-callback (val)
 	     (declare (ignore val))
 	     (funcall callback)))
     (with-form-callback (callback-key #'submit-callback)
       (create-basic-input value :submit :name (format nil "~A{~A}" "submit-callbacks"
 						      callback-key)
-			  :callback #'submit-callback))))
+			  :callback #'submit-callback
+			  :ui-class ui-class))))
 
-(defun create-basic-input (value type &key id name callback on of checked
-				       (callback-required nil) maxlength size)
+(defun button-input (type value callback &key ui-class)
+  (labels ((button-callback (val)
+	     (declare (ignore val))
+	     (funcall callback)))
+    (with-form-callback (callback-key #'button-callback)
+      (to-html
+	(:button :type (typecase type
+			 (string type)
+			 (symbol (symbol-name type)))
+		 :class ui-class
+		 :name (format nil "~A{~A}" "button-callbacks" callback-key)
+		 (str value))))))
+
+(defun create-basic-input (value type &key id name callback on of checked (callback-required nil)
+					maxlength size ui-class)
   (let ((input-callback #'(lambda (val)
 			     (cond (callback (funcall callback val))
 				   ((and on of) (setf (slot-value of on) val))))))
     (with-form-callback (callback-key input-callback callback-required)
       (to-html
 	(:input :type (symbol-name type)
+		:class ui-class
 		:id id
 		:name (if name 
 			  name
@@ -529,7 +544,7 @@
 		:maxlength (when maxlength maxlength)
 		:size (when size size))))))
 
-(defun select-input (&key size values show selected callback on of)
+(defun select-input (&key size values show selected callback on of ui-class)
   (let ((value-input-map (let ((list-idx 0))
 			   (mapcar #'(lambda (value)
 				       (list (pincf list-idx)
@@ -542,14 +557,16 @@
 		     (setf (slot-value of on) value)))))
       (with-form-callback (callback-key #'select-input-callback)
 	(to-html
-	  (:select :size (when size (write-to-string size))
-		   :name (format nil "~A{~A}" "inputs" callback-key)
-		   (dolist (value value-input-map)
-		     (htm (:option :value (write-to-string (first value))
-				   :selected (when (eql (second value)
-							selected)
-					       "selected")
-				   (esc (funcall show (second value))))))))))))
+	  (:select
+	   :class ui-class
+	   :size (when size (write-to-string size))
+	   :name (format nil "~A{~A}" "inputs" callback-key)
+	   (dolist (value value-input-map)
+	     (htm (:option :value (write-to-string (first value))
+			   :selected (when (eql (second value)
+						selected)
+				       "selected")
+			   (esc (funcall show (second value))))))))))))
 
 (defmacro with-radio-group (&body body)
   `(let ((*radio-group-name* (gen-callback-key))
