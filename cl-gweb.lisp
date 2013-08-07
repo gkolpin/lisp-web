@@ -487,6 +487,9 @@
 (defmacro text-input (value &rest create-basic-input-args)
   `(create-basic-input ,value :text ,@create-basic-input-args))
 
+(defmacro textarea-input (value &rest create-basic-input-args)
+  `(create-basic-input ,value :textarea ,@create-basic-input-args))
+
 (defmacro hidden-input (value &rest create-basic-input-args)
   `(create-basic-input ,value :hidden ,@create-basic-input-args))
 
@@ -528,21 +531,32 @@
 (defun create-basic-input (value type &key id name callback on of checked (callback-required nil)
 					maxlength size ui-class)
   (let ((input-callback #'(lambda (val)
-			     (cond (callback (funcall callback val))
-				   ((and on of) (setf (slot-value of on) val))))))
+			    (cond (callback (funcall callback val))
+				  ((and on of) (setf (slot-value of on) val))))))
     (with-form-callback (callback-key input-callback callback-required)
-      (to-html
-	(:input :type (symbol-name type)
-		:class ui-class
-		:id id
-		:name (if name 
-			  name
-			  (format nil "~A{~A}" "inputs"
-				  callback-key))
-		:value value
-		:checked (when checked "checked")
-		:maxlength (when maxlength maxlength)
-		:size (when size size))))))
+      (if (eql type :textarea)
+	  (to-html
+	    (:textarea :class ui-class
+		       :id id
+		       :name (if name
+				 name
+				 (format nil "~A{~A}" "inputs"
+					 callback-key))
+		       :value value
+		       :maxlength (when maxlength maxlength)
+		       :size (when size size)))
+	  (to-html
+	    (:input :type (symbol-name type)
+		    :class ui-class
+		    :id id
+		    :name (if name 
+			      name
+			      (format nil "~A{~A}" "inputs"
+				      callback-key))
+		    :value value
+		    :checked (when checked "checked")
+		    :maxlength (when maxlength maxlength)
+		    :size (when size size)))))))
 
 (defun select-input (&key size values show selected callback on of ui-class)
   (let ((value-input-map (let ((list-idx 0))
