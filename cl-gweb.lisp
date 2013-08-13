@@ -568,7 +568,7 @@
 	       (let ((int-value (parse-integer value)))
 		 (if callback
 		     (funcall callback (second (assoc int-value value-input-map)))
-		     (setf (slot-value of on) value)))))
+		     (setf (slot-value of on) (second (assoc int-value value-input-map)))))))
       (with-form-callback (callback-key #'select-input-callback)
 	(to-html
 	  (:select
