@@ -30,7 +30,7 @@
     (setf *catch-errors-p* nil))
   (pushnew (get-action *custom-dispatcher* 'http-dispatch) *dispatch-table*)
   (hunchentoot:start (setf *acceptor* 
-			   (make-instance 'acceptor
+			   (make-instance 'easy-acceptor
 					  ;;:address "127.0.0.1"
 					  :port *port*
 					  :taskmaster (make-instance 
